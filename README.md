@@ -1,4 +1,4 @@
-# CANVAS
+sies# CANVAS
 **CANVAS: CANOPUS and SIRIUS Visualization & Analysis System**
 
 ## Overview
@@ -50,5 +50,8 @@ CANVAS uses 4 different input files:
 - One metadata file containing all the variable to considerate.
 
   ### 1. Integrated peak file
-  The most easy way to start this dash app is to use integrated features extracted with MSDIAL. Diverse tutorials for extracting and integrating LC/MS/MS raw data from DIA or DDA experiments can be found on the github of [MSDIAL] (https://systemsomicslab.github.io/mtbinfo.github.io/MS-DIAL/tutorial.html#chapter-2). 
+  The easiest way to start this dash app is to use integrated features extracted with MSDIAL. Diverse tutorials for extracting and integrating LC/MS/MS raw data from DIA or DDA experiments can be found on the github of [MSDIAL] (https://systemsomicslab.github.io/mtbinfo.github.io/MS-DIAL/tutorial.html#chapter-2). 
   Briefly, after the aligment and integration, you should be able to export bith the aligned mat file needed for Sirius processing and the list of extracted areas.
+  <img width="1279" height="908" alt="image" src="https://github.com/user-attachments/assets/6e3a0898-aa6a-40ea-b41a-daf9dd0b7ee6" /> <img width="432" height="750" alt="image" src="https://github.com/user-attachments/assets/a158103a-fb59-494b-babb-585ae7e6bc84" />
+
+
