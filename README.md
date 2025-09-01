@@ -7,15 +7,15 @@ CANVAS is an interactive Dash application for **visualization and interpretation
 The tool enables researchers to:
 - Integrate SIRIUS and CANOPUS outputs with intensity-based measurements.
 - Explore metabolite classes dynamically using thresholds and ontology levels.
-- Visualize results with **sunburst plots, bar charts, and PCA**.
+- Visualize results with **sunburst plots, bar charts, PCA and random forest classifier**.
 - Compare metabolite distributions across samples or conditions.
 - Streamline hypothesis generation in untargeted metabolomics workflows.
 
 ---
 
 ## Features
-- 📊 **Interactive visualizations** (sunburst, bar charts, PCA).  
-- 🧭 **Dynamic filtering** by class confidence scores and hierarchy levels.  
+- 📊 **Interactive visualizations** (sunburst, bar charts, PCA, random forest).  
+- 🧭 **Dynamic filtering** by class confidence and Sirius annotation scores, by hierarchy levels and intensity levels.  
 - 🔍 **Exploration of SIRIUS & CANOPUS outputs** with user-friendly controls.  
 - 🧪 **Example datasets** provided (plant, lipidomics, human cell metabolomics).  
 
