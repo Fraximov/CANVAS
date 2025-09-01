@@ -59,3 +59,10 @@ CANVAS uses 4 different input files:
    ### 2. Sirius structure and Canopus output files
   To run Sirius for your LC/MS/MS analysis pipeline, you can now import the .mat file generated at the previous step and create a new sirius project. Tutorials and guidelines can be found in the Sirius website for more details. After your analysis is done, you can click "Summaries" and select the export files of interest. CANVAS has been optimized to use Sirius     export based on the top 1 Hit. Save the files in .tsv. Quality check can be done in the Sirius GUI over the different MS2 features to ensure an overall good quality of the data. You should now have "structure_identification.tsv" and "canopus_structure_identification.tsv" saved in your directory:
   <img width="1328" height="778" alt="image" src="https://github.com/user-attachments/assets/cb142b14-3428-4ee2-9b73-9489e68c5f2f" />
+
+
+   ### 3. Metadata
+  The last input file is the metadata, created by the user. The file need to be saved in .csv and needs to follow these formatting requirements:
+  - The first row of the file is the column names. The first column name should always be named "name_file".
+  - The first column should contain the list of the sample names. The name should be the same as the names of the files loaded in MSDIAL (and that can be found in aligned area peaks file).
+  - Each other colu
