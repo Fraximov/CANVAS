@@ -27,14 +27,16 @@ The tool enables researchers to:
 ```bash
 git clone https://github.com/your-username/CANVAS.git
 cd CANVAS
-
+````
 ### 2. Install dependencies
 
 ```bash
 pip install -r requirements.txt
-
+````
 
 ### 3. Run CANVAS
-python app.py
 
+```bash
+python app.py
+````
 This should automatically open a new navigator windows on your computer on the following adress (http://127.0.0.1:8050)
