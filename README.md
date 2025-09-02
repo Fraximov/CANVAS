@@ -62,7 +62,19 @@ CANVAS uses 4 different input files:
 
 
    ### 3. Metadata
-  The last input file is the metadata, created by the user. The file need to be saved in .csv and needs to follow these formatting requirements:
+  The last input file is the metadata, created by the user. The file needs to be saved in .csv and needs to follow these formatting requirements:
   - The first row of the file is the column names. The first column name should always be named "name_file".
-  - The first column should contain the list of the sample names. The name should be the same as the names of the files loaded in MSDIAL (and that can be found in aligned area peaks file).
-  - Each other colu
+  - The first column should contain the list of the sample names. The names should be the same as the names of the files loaded in MSDIAL (Tip: you can open the aligned area peaks file from MSDIAL and copy the names directly there).
+  - Each other column names contain the variable names of the experiment.
+  - For blank samples, some variable should contain the name "Blank" so they can be identified by CANVAS and be automatically used for blank substraction.
+  <img width="588" height="348" alt="image" src="https://github.com/user-attachments/assets/09673fe1-95fe-4379-94bf-29c8119d8228" />
+
+## Starting CANVAS
+ ### 1. Loading the data
+Once you open CANVAS, you can load the four different input files in the header section. When correctly loaded, the icons below the loading area should be updated.
+<img width="2376" height="312" alt="image" src="https://github.com/user-attachments/assets/58078b72-89e5-40ab-acfa-8203b59ebad7" />
+For a first-time analysis of the data, you will need to select "Files are raw". If the processing has alreaady been performed once before and the data saved, you can directly processed to "Load Files".
+<img width="2298" height="606" alt="image" src="https://github.com/user-attachments/assets/b17f212e-fba4-4340-83d5-73ffc39cbf52" />
+You will need to select "Trim raw file". This option enables the removal of the first few lines of the area peak files from MSDIAL before processing. You will need to write a name commun pattern identifier that is contain in your file name list. Once you click "Load Files", you should see a confirmation of the loaded data with a rectangular blue button. If the dataset is huge (>50mb), this step can takes up from several seconds to a couple of minutes.
+
+### 1. Processing the data
