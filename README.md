@@ -77,4 +77,14 @@ For a first-time analysis of the data, you will need to select "Files are raw". 
 <img width="2298" height="606" alt="image" src="https://github.com/user-attachments/assets/b17f212e-fba4-4340-83d5-73ffc39cbf52" />
 You will need to select "Trim raw file". This option enables the removal of the first few lines of the area peak files from MSDIAL before processing. You will need to write a name commun pattern identifier that is contain in your file name list. Once you click "Load Files", you should see a confirmation of the loaded data with a rectangular blue button. If the dataset is huge (>50mb), this step can takes up from several seconds to a couple of minutes.
 
-### 1. Processing the data
+### 2. Processing the data
+After the loading of the raw data, you have the possibility to process the data through different steps:
+#### 1. Blank removal
+identify the samples annotated with 'Blank' in the metadata. The blanked samples are then averaged over each feature. Each feature is compared to the blank feature. If the feature is below the indicated ratio by the user (slider), it is removed from the list of analyzed features. A typical value is 0.1, i.e. all features that are not at least 10 times higher than the background will be removed.
+#### 2. Imputation
+Data can then be imputed. Briefly, missing feature values and equal to 0 will be replaced by sampling a normal distribution set between 0 and the minimum value of the data.
+#### 3. Normalization
+The normalization step consists of normalizing each feature of the dataset by the TIC (Total Ion Chromatograme) of each sample. TIC normalization assumes a set of assumption (such as equal distibution of feature intensities over all samples) that the author invites the user to verifiy before applying this step.
+#### 3. Scaling
+For data export and facilitating the visualization with certain tools, it may be necessary to scale the data to minimize the impact of extreme values. For that, the data are transformed with log2 and are then centered around 0.
+
