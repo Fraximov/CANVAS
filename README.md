@@ -84,7 +84,7 @@ identify the samples annotated with 'Blank' in the metadata. The blanked samples
 #### 2. Imputation
 Data can then be imputed. Briefly, missing feature values and equal to 0 will be replaced by sampling a normal distribution set between 0 and the minimum value of the data.
 #### 3. Normalization
-The normalization step consists of normalizing each feature of the dataset by the TIC (Total Ion Chromatograme) of each sample. TIC normalization assumes a set of assumption (such as equal distibution of feature intensities over all samples) that the author invites the user to verifiy before applying this step.
+The normalization step consists of normalizing the features of each sample by the TIC (Total Ion Chromatograme) of the sample. TIC normalization is an easy normalization and inexpensive computationally, but assumes that the amount injected across all samples is consistent. It also assumes all metabolites are stable between samples, which have obvious limitations according to the experimental design and background.
 #### 3. Scaling
-For data export and facilitating the visualization with certain tools, it may be necessary to scale the data to minimize the impact of extreme values. For that, the data are transformed with log2 and are then centered around 0.
-
+In order to facilite the visualization with certain tools or specific analysis, it may be necessary to scale the data to minimize the impact of extreme values. For that, the data are transformed with the StandardScaler() method from sklearn.preprocessing. Each feature is center-scaled by substracting the mean and diving by the standard deviation of the feature over all samples, resulting of the final data being centered around 0 with a standard deviation of 1.
+ 
