@@ -88,3 +88,17 @@ The normalization step consists of normalizing the features of each sample by th
 #### 3. Scaling
 In order to facilite the visualization with certain tools or specific analysis, it may be necessary to scale the data to minimize the impact of extreme values. For that, the data are transformed with the StandardScaler() method from sklearn.preprocessing. Each feature is center-scaled by substracting the mean and diving by the standard deviation of the feature over all samples, resulting of the final data being centered around 0 with a standard deviation of 1.
  
+## Using CANVAS for visualization and data analysis
+### 1. GUI interface for data selection 
+After loading the data and process them until the step of choice, you can now use the GUI to visualize and analyze your data. The GUI parameters is separated in different pannels: 
+- Filter pannels
+- Display options
+- Selected options
+- Browse by specific features
+#### 1. Display options
+You can chose to visualize the data based on the area intensity of each feature or based on the number of features detected with the intensity treshold (see Filters). The data can be visualized for every level of the NPC classification made by CANOPUS. By default, every hierarchical level is activated to be displayed.
+
+#### 2.Selection options 
+You can chose the data processed with your method of your choice. Note that you had to processed the data (see previously) to be able to select the corresponding formatted data. 
+You can chose two levels of variable parameters. By default, only one level is activated as it is often sufficient for a first overview. Once you selected the parameter of interest, you can refine which variable is considered for the visualization in the selection toolbox below. You can directly select all variables belonging to the chosen parameter(s) by clicking "select all".
+
