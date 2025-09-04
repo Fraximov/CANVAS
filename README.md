@@ -41,7 +41,7 @@ python app.py
 ````
 This should automatically open a new navigator windows on your computer on the following adress (http://127.0.0.1:8050)
 
-
+---
 ## Data Input processing
 
 CANVAS uses 4 different input files:
@@ -68,7 +68,7 @@ CANVAS uses 4 different input files:
   - Each other column names contain the variable names of the experiment.
   - For blank samples, some variable should contain the name "Blank" so they can be identified by CANVAS and be automatically used for blank substraction.
   <img width="588" height="348" alt="image" src="https://github.com/user-attachments/assets/09673fe1-95fe-4379-94bf-29c8119d8228" />
-
+---
 ## Starting CANVAS
  ### 1. Loading the data
 Once you open CANVAS, you can load the four different input files in the header section. When correctly loaded, the icons below the loading area should be updated.
@@ -85,9 +85,13 @@ identify the samples annotated with 'Blank' in the metadata. The blanked samples
 Data can then be imputed. Briefly, missing feature values and equal to 0 will be replaced by sampling a normal distribution set between 0 and the minimum value of the data.
 #### 3. Normalization
 The normalization step consists of normalizing the features of each sample by the TIC (Total Ion Chromatograme) of the sample. TIC normalization is an easy normalization and inexpensive computationally, but assumes that the amount injected across all samples is consistent. It also assumes all metabolites are stable between samples, which have obvious limitations according to the experimental design and background.
-#### 3. Scaling
-In order to facilite the visualization with certain tools or specific analysis, it may be necessary to scale the data to minimize the impact of extreme values. For that, the data are transformed with the StandardScaler() method from sklearn.preprocessing. Each feature is center-scaled by substracting the mean and diving by the standard deviation of the feature over all samples, resulting of the final data being centered around 0 with a standard deviation of 1.
- 
+#### 4. Scaling
+In order to facilitethe visualization with certain tools or specific analysis, it may be necessary to scale the data to minimize the impact of extreme values. For that, the data are transformed with the StandardScaler() method from sklearn.preprocessing. Each feature is center-scaled by substracting the mean and diving by the standard deviation of the feature over all samples, resulting of the final data being centered around 0 with a standard deviation of 1.
+
+<img width="2521" height="608" alt="image" src="https://github.com/user-attachments/assets/c3aa179c-0c24-4baa-a658-38ce8f8c2d8a" />
+
+
+ ---
 ## Using CANVAS for visualization and data analysis
 ### 1. GUI interface for data selection 
 After loading the data and process them until the step of choice, you can now use the GUI to visualize and analyze your data. The GUI parameters is separated in different pannels: 
@@ -97,8 +101,12 @@ After loading the data and process them until the step of choice, you can now us
 - Browse by specific features
 #### 1. Display options
 You can chose to visualize the data based on the area intensity of each feature or based on the number of features detected with the intensity treshold (see Filters). The data can be visualized for every level of the NPC classification made by CANOPUS. By default, every hierarchical level is activated to be displayed.
+<img width="424" height="163" alt="image" src="https://github.com/user-attachments/assets/345f3854-b57d-48ce-b343-23cea06bee4a" />
 
 #### 2.Selection options 
 You can chose the data processed with your method of your choice. Note that you had to processed the data (see previously) to be able to select the corresponding formatted data. 
 You can chose two levels of variable parameters. By default, only one level is activated as it is often sufficient for a first overview. Once you selected the parameter of interest, you can refine which variable is considered for the visualization in the selection toolbox below. You can directly select all variables belonging to the chosen parameter(s) by clicking "select all".
+<img width="1253" height="384" alt="image" src="https://github.com/user-attachments/assets/e140cc4a-7493-460c-a28a-f8ef69a9c6bc" />
+<img width="1250" height="354" alt="image" src="https://github.com/user-attachments/assets/522c13bd-0a88-4f3e-97b4-f6cc546b2af3" />
+<img width="1242" height="125" alt="image" src="https://github.com/user-attachments/assets/20f2bc9a-27d7-4282-a140-335ab37807b0" />
 
