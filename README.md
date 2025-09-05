@@ -110,6 +110,15 @@ You can chose two levels of variable parameters. By default, only one level is a
 <img width="1250" height="354" alt="image" src="https://github.com/user-attachments/assets/522c13bd-0a88-4f3e-97b4-f6cc546b2af3" />
 <img width="1242" height="125" alt="image" src="https://github.com/user-attachments/assets/20f2bc9a-27d7-4282-a140-335ab37807b0" />
 
+#### 3. Filters 
+You can filter the dataset with three different filter sliders:
+- Intensity thresholding: in percent of the cut-off intensity threshold below which one the features are kept, i.e. if the slider is on 10, it means the data will retain 10% of the most intense features.
+- Sirius score threshold: Features possessing lower scores than this treshold will be removed from the analysis. The General Sirius score indicates how confident Sirius is on the molecular formula annotation.
+- Canopus score threshold: Features posessing lower scores than this threshold will be removed from the analysis: The Canopus score treshold applies individually to Pathway, classes and subclasses hierarchy. If one of these values is lower than the treshold, the feature is removed entirely. We advice to keep this threshold fairly low.
+
+#### 4. Select specific features
+If the feature has been identified in Sirius CSI:Finger ID, you can browse the list of compound names here by searching the name by the entry text. Select the compounds of interests and everything else will be discarded from the dataset. You can add as many compounds as wanted.
+
 
 ### 2. Data visualization
 #### 1. Sunburst plot
