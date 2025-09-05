@@ -130,8 +130,14 @@ If the feature has been identified in Sirius CSI:Finger ID, you can browse the l
 #### 3. individual boxplots 
 <img width="2065" height="657" alt="image" src="https://github.com/user-attachments/assets/10d4c9c3-1448-4d64-a39a-5cbf226c05cf" />
 
-### 3. Data analysis 
+### 3. Multivariate analysis 
 The other tabs enables the user to obtain a rapid overview on a more analytic visualization, with the use of Principal Component analysis (PCA) and Random forest.
 
 #### 1. PCA
-PCA of the two first components is displayed for the selected variables (left). On the right, you can obtain a more detailed view of the features contributing to the variances of PCA1 and PCA2. Note that the features appearing as high contributors to the variances is an indicator through all samples selected and not between labeled groups (see random forest for that). Fstatistic is available (at the title place) to se e
+PCA of the two first components is displayed for the selected variables (left). On the right, you can obtain a more detailed view of the features contributing to the variances of PCA1 and PCA2. Note that the features appearing as high contributors to the variances is an indicator through all samples selected and not between labeled groups (see random forest for that). Wilks’ Lambda p (MANOVA) is available as a quick overview on the significance of the data (located in title).
+
+#### 2. Random Forest (Supervised learning)
+Random forest algorithm (rf) will help in looking for the features contributing the most to the best score between trees that attempt to classify the data according to the variables you selected. What is provided in this tab is the measure of feature importances. Note the feature importances come from measuring the error rate of the model, and it can only be as r
+
+## Exporting processed data with CANVAS
+By scrolling down the app, you can use the button "export data" to export the processed dataset (=at the step of interest, cleaned, and merged with the structural information as column head titles°). If you want to export only the data after filtering, select the checkbok "Filtered", otherwise it will download the whole dataset.
