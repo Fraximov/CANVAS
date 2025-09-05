@@ -110,3 +110,15 @@ You can chose two levels of variable parameters. By default, only one level is a
 <img width="1250" height="354" alt="image" src="https://github.com/user-attachments/assets/522c13bd-0a88-4f3e-97b4-f6cc546b2af3" />
 <img width="1242" height="125" alt="image" src="https://github.com/user-attachments/assets/20f2bc9a-27d7-4282-a140-335ab37807b0" />
 
+
+### 2. Data visualization
+#### 1. Sunburst plot
+<img width="2519" height="432" alt="image" src="https://github.com/user-attachments/assets/4434e1fb-19aa-457b-a4d9-527976fe0ffb" />
+
+#### 2. Barplot chart 
+<img width="2513" height="406" alt="image" src="https://github.com/user-attachments/assets/fdd64c3c-1461-40b8-8fb6-e789cd2c25c8" />
+
+#### 3. individual boxplots 
+<img width="2065" height="657" alt="image" src="https://github.com/user-attachments/assets/10d4c9c3-1448-4d64-a39a-5cbf226c05cf" />
+
+
