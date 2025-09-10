@@ -46,1225 +46,6 @@ def cache_get(stage_key):
     return cache.get(stage_key)
 
 
-
-jupyter_dash.default_mode="external"
-
-
-# In[17]:
-
-
-external_stylesheets = [dbc.themes.FLATLY]
-
-app = Dash(__name__, external_stylesheets=external_stylesheets,suppress_callback_exceptions=True)
-
-# Create the cache object first
-cache = Cache()
-
-
-# Then initialize it with the underlying Flask server
-cache.init_app(
-    app.server,
-    config={
-        "CACHE_TYPE": "filesystem",   # or "simple" for in-memory
-        "CACHE_DIR": "dash_cache",    # required for filesystem
-        "threshold": 500,             # max entries
-        "default_timeout": 24*3600,   # 1 day
-    }
-)
-
-
-selection_card = dbc.Card(
-    dbc.CardBody([
-        html.H5("Selection Options", className="card-title"),
-
-        dbc.Row([
-            dbc.Label("Select Data Version"),
-            dcc.Dropdown(
-                id='data-version-dropdown',
-                options=[
-                    {'label': 'Raw (Peak Areas)', 'value': 'raw'},
-                    {'label': 'Blanked', 'value': 'blanked'},
-                    {'label': 'Imputed', 'value': 'imputed'},
-                    {'label': 'Normalized', 'value': 'normalized'},
-                    {'label': 'Scaled', 'value': 'scaled'},
-                ],
-                value='raw',  # default selection
-                clearable=False,
-                
-            ),
-            
-        ], className="mb-3"),
-        
-        dbc.Row([
-            dbc.Label("Select parameter(s)"),
-            dcc.Dropdown(
-                id='parameter-dropdown',
-                options=[],
-                value=None,
-                clearable=False,
-            ),
-
-            dcc.Dropdown(
-                id='parameter-dropdown2',
-                options=[],   # filled dynamically or same as first
-                multi=False,
-                placeholder='Select second grouping parameter (optional)'
-            ),
-                
-        ], className="mb-3"),
-
-        dbc.Label("Select information for plotting:"),        
-        dbc.Row([
-            dbc.Col(
-                [
-                    
-                    dcc.Dropdown(
-                        id='information-dropdown',
-                        options=[],
-                        value=None,
-                        multi=True
-                    ),
-                ],
-                width=8
-            ),
-            dbc.Col(
-                dbc.Button("Select All", id="select-all-btn", color="primary"),
-                width="auto"
-            ),
-            dbc.Col(
-                [
-                    
-                    dcc.Dropdown(
-                        id='information-dropdown2',
-                        options=[],
-                        value=None,
-                        multi=True
-                    ),
-                ],
-                width=8
-            ),
-
-             dbc.Col(
-                dbc.Button("Select All", id="select-all-btn2", color="primary"),
-                width="auto"
-            ),
-            
-        ]),
-        
-    ]),
-    className="mb-4 g-3",
-)
-# --- First card: Buttons and Checkboxes
-controls_card = dbc.Card(
-    dbc.CardBody([
-        html.H5("Display Options", className="card-title"),
-
-        dbc.ButtonGroup(
-            [
-                dbc.Button("Intensity", id="radio-intensity", color="primary", outline=True, active=True, n_clicks=0, size="sm", className="mx-1"),
-                dbc.Button("Count", id="radio-count", color="primary", outline=True, active=False, n_clicks=0, size="sm", className="mx-1"),
-            ],
-            className="mb-4 g-3",
-            id="radio-style-buttons",
-        ),
-
-        html.H6("Group By", className="card-subtitle mb-2 text-muted"),
-
-        dbc.Checklist(
-            options=[
-                {"label": "Pathway", "value": "NPC#pathway"},
-                {"label": "Superclass", "value": "NPC#superclass"},
-                {"label": "Class", "value": "NPC#class"},
-            ],
-            value=[ "NPC#pathway", "NPC#superclass","NPC#class"],  # default checked
-            id="checkbox-levels",
-            inline=True,
-            switch=True,
-        ),
- 
-    ]),
-    className="mb-4 g-3",
-    #style={"width": "22rem", "minWidth": "300px"},
-)
-
-# --- Second card: Sliders
-sliders_card = dbc.Card(
-    dbc.CardBody([
-        html.H5("Filters", className="card-title"),
-
-        dbc.Label("Threshold:", className="mt-2"),
-        dcc.Slider(
-            id='threshold-slider',
-            min=0, max=1, step=0.01, value=0.1, marks=None,
-            tooltip={"placement": "bottom", "always_visible": True},
-        ),
-
-        dbc.Label("Min Probability:", className="mt-4"),
-        dcc.Slider(
-            id='probability-slider',
-            min=0, max=1, step=0.05, value=0.3, marks=None,
-            tooltip={"placement": "bottom", "always_visible": True},
-        ),
-
-        dbc.Label("Min Sirius Score:", className="mt-4"),
-        dcc.Slider(
-            id='sirius-slider',
-            min=0, max=1, step=0.05, value=0.5, marks=None,
-            tooltip={"placement": "bottom", "always_visible": True},
-        ),
-    ]),
-     className="mb-4 g-3",
-    #style={"width": "25rem", "minWidth": "320px"},a
-)
-
-
-# --- Third card: Toat information
-
-toast_card = dbc.Card(
-    dbc.Toast(
-        id="data-summary-toast",
-        header="Data Summary",
-        icon="info",
-        dismissable=True,
-        is_open=False  # closes automatically after 8s
-    )
-
-)
-
-# --- Fourth card: Specific compound selector
-
-compound_selection_card = dbc.Card(
-        dbc.CardBody([
-            dbc.Checkbox(
-                id='browse-compounds-checkbox',
-                label="Browse by specific items"
-            ),
-            html.Div(  # this div wraps the searchable UI and starts hidden
-                [
-                    dbc.Label("Search compound name"),
-                    dcc.Input(
-                        id='compound-search-input', 
-                        type='text',
-                        placeholder='Type part of compound name...'
-                    ),
-                    dcc.Dropdown(
-                        id='compound_dropdown',
-                        options=[],
-                        value=[],
-                        clearable=False,
-                        multi=True,
-                    )
-                ],
-                id="compound-search-controls",
-                style={"display": "none"}  # hidden by default
-            )
-        ])
-    )
- 
-
-
-
-app.layout = dbc.Container([
-
-
-    dcc.Store(id='store-peak-areas'),
-    dcc.Store(id='store-metadata'),
-    dcc.Store(id='store-canopus'),
-    dcc.Store(id="radio-mode-store", data="Intensity"),
-    dcc.Store(id='store-blanked'),       # after blank subtraction
-    dcc.Store(id='store-imputed'),       # after imputation
-    dcc.Store(id='store-normalized'),    # after normalization
-    dcc.Store(id='store-scaled'),        # after scaling
-    dcc.Store(id="store-current-step"),
-    dcc.Store(id='store-compound-names'),
-    
-    dbc.Row([
-        html.H2("Sirius-Canopus visualization of LC-MS data")
-    ]),
-    
-    dbc.Button("Show/Hide Upload Panel", id="toggle-upload-panel", className="mb-2", color="primary"),
-    
-    dbc.Collapse([
-        dbc.Row([
-            dbc.Col([
-                html.H5("Upload Peak Areas"),
-                dcc.Upload(
-                    id='upload-peak-areas',
-                    children=html.Div(['Drag and Drop or ', html.A('Select File')]),
-                    multiple=False,
-                    accept='.csv',
-                    style={'border': '1px dashed #aaa', 'padding': '10px'}
-                ),
-            ]),
-            dbc.Col([
-                html.H5("Upload Metadata"),
-                dcc.Upload(
-                    id='upload-metadata',
-                    children=html.Div(['Drag and Drop or ', html.A('Select File')]),
-                    multiple=False,
-                    accept='.csv',
-                    style={'border': '1px dashed #aaa', 'padding': '10px'}
-                ),
-            ]),
-            dbc.Col([
-                html.H5("Upload CANOPUS"),
-                dcc.Upload(
-                    id='upload-canopus',
-                    children=html.Div(['Drag and Drop or ', html.A('Select File')]),
-                    multiple=False,
-                    accept= '.csv,.tsv',
-                    style={'border': '1px dashed #aaa', 'padding': '10px'}
-                ),
-            ]),
-            dbc.Col([
-                html.H5("Upload SIRIUS structure"),
-                dcc.Upload(
-                    id='upload-structure',
-                    children=html.Div(['Drag and Drop or ', html.A('Select File')]),
-                    multiple=False,
-                    accept= '.csv,.tsv',
-                    style={'border': '1px dashed #aaa', 'padding': '10px'}
-                ),
-            ]),            
-            
-            dbc.Col([
-                html.Div(id='file-status'),
-                ]),
-        ]),
-        
-        dbc.Row([
-            dbc.Col([
-                html.Div(id='file-status-drop', style={'marginTop': '15px'})
-                    ])
-                ]),
-        
-        dbc.Row([
-            dbc.Col([
-                dbc.Checkbox(id='is-raw-checkbox', label='Files are raw (need processing)', value=False)
-            ]),]),
-                dbc.Collapse(
-                id="raw-settings-collapse",
-                is_open=False,
-                children=[
-                    dbc.Card(
-                        dbc.CardBody([
-                            dbc.Checklist(options=[{"label": "Trim raw file", "value": "check_trim"}],
-                                                               value=["check_trim"],  # default checked
-                                                                id="checkbox-trim",
-                                                                inline=True,
-                                                                switch=True),
-                            html.Label("Sample name pattern:"),
-                            dbc.Input(id="sample-pattern-input", placeholder="e.g., sample_*_rep*", type="text"),
-
-
-                            dbc.Row([
-                                dbc.Col([
-                                        
-                            
-                                    dbc.Label("Blank Threshold:", className="mt-2"),
-                                    dcc.Slider(
-                                            id='blank-slider',
-                                            min=0, max=1, step=0.01, value=0.1, marks=None,
-                                            tooltip={"placement": "bottom", "always_visible": True}
-                                        
-                                        )], width=3
-                                       ),
-                                
-                                 dbc.Col(
-                                    dbc.ButtonGroup([
-                                        dbc.Button("Blanked", id="btn-blanked", color="primary", outline=False, className="me-1"),
-                                        dbc.Button("Imputed", id="btn-imputed", color="success", outline=False, className="me-1", disabled=True),
-                                        dbc.Button("Normalized", id="btn-normalized", color="info", outline=False, className="me-1", disabled=True),
-                                        dbc.Button("Scaled", id="btn-scaled", color="warning", outline=False, className="me-1",disabled=True),
-                                    ],
-                                    size="lg"),
-                                    width=9,
-                                    className="d-flex align-items-center justify-content-center"
-                                )
-                            ])
-                            
-
-                            
-                        ])
-                    )
-                ]
-            ),
-        
-        
-        dbc.Row([
-            dbc.Col(
-            dbc.Button("Load Files", id="load-files-button", color="primary"),
-            width="auto"
-            ),
-            dbc.Col(
-            dcc.Loading(
-            html.Div("", id="loading-display-output"),
-            id="loading-display"
-        ),   
-            ),
-            dbc.Col(
-            html.Div(id="upload-status"),
-            width=True  # Automatically takes remaining space
-        ),
-            dbc.Col(
-            html.Div(id="upload-status-blank"),
-            width=True  # Automatically takes remaining space
-        ),
-            dbc.Col(
-            html.Div(id="upload-status-imputation"),
-            width=True  # Automatically takes remaining space
-        ),
-            dbc.Col(
-            html.Div(id="upload-status-normalization"),
-            width=True  # Automatically takes remaining space
-        ),
-            dbc.Col(
-            html.Div(id="upload-status-scaling"),
-            width=True  # Automatically takes remaining space
-        ),
-        ], align="center", className="mb-3")
-    ], id="upload-panel", is_open=False),
-
-
-
-
-    
-
-    
-    
-
-    dbc.Row([
-        dbc.Col([sliders_card,
-                 toast_card,
-                compound_selection_card]),
-        dbc.Col([controls_card,
-               selection_card]),
-        
-    ], className="mb-4 4 mt-4"),  # g-3 adds small gap between cols
-    
- 
-    dbc.Tabs(
-        id='tabs-final-plot',
-        active_tab='sunburst',
-        children=[
-            dbc.Tab(label='Sunburst Plot', tab_id='sunburst'),
-            dbc.Tab(label='Barplot', tab_id='barplot'),
-            dbc.Tab(label='PCA', tab_id = 'PCA'),
-            dbc.Tab(label='line_plot', tab_id = 'line_plot'),
-            dbc.Tab(label='Random Forest', tab_id='rf'),
-    ]),
-
-    dbc.Spinner(
-        dcc.Graph(id='final-graph',
-                 config={
-        "toImageButtonOptions": {
-            "format": "svg",  # one of png, svg, jpeg, webp
-            "filename": "my_plot",
-            "height": 600,
-            "width": 800,
-            "scale": 1
-        }}),
-        color="primary",  # 'primary', 'secondary', 'success', etc.
-        type="border",    # or 'grow'
-        fullscreen=False,  # You can set to True for full-page overlay
-        size="md",        # 'sm', 'md', 'lg'
-        spinner_style={"width": "3rem", "height": "3rem"}  # optional custom style
-    ),
-    
-    dbc.Row([
-        html.H4("Data Preview"),
-        dcc.Tabs(id="preview-tabs", value='peak', children=[
-        dcc.Tab(label='Peak Areas', value='peak'),
-        dcc.Tab(label='Metadata', value='meta'),
-        dcc.Tab(label='CANOPUS', value='cano'),
-        ]),
-        dash_table.DataTable(id='data-preview-table',
-                     style_table={'overflowX': 'auto'},
-                     page_size=5),
-            ]),
-    dbc.Row([
-    dbc.Button("Download CSV", id="download-btn", color="primary", className="mb-2"),
-    dcc.Download(id="download-dataframe-csv"),          
-    ]),
-    
-], fluid=True)
-
-
-# In[18]:
-
-
-@callback(
-    Output("data-summary-toast", "children"),
-    Output("data-summary-toast", "is_open"),
-    Output('final-graph', 'figure'),
-    Input('tabs-final-plot', 'active_tab'),
-    Input('parameter-dropdown', 'value'),
-    Input('parameter-dropdown2', 'value'),  
-    Input('information-dropdown', 'value'),
-    Input('information-dropdown2', 'value'),
-    Input('threshold-slider', 'value'),
-    Input('probability-slider', 'value'),
-    Input('sirius-slider', 'value'),
-    Input('radio-mode-store', 'data'),
-    Input('checkbox-levels', 'value'),
-    Input("store-current-step", "data"),    # <-- key, not big JSON
-    Input("compound_dropdown", "value"),
-    State('store-metadata', 'data'),
-    State('store-canopus', 'data'),
-)
-def update_sunburst(tab_choice, selected_param, second_param, selected_locations,
-                    selected_samples2, threshold, filter_prob, filter_sirius,
-                    radio_choice, checkbox_levels, current_step_key, selected_compounds,
-                    metadata_dict, canopus_dict):
-
-    if not selected_locations or not metadata_dict or not canopus_dict or not current_step_key:
-        return no_update, False, go.Figure()
-
-    cleaned_data = cache_get(current_step_key)  # <-- fetch from cache
-    if cleaned_data is None:
-        return no_update, False, go.Figure()
-
-    cleaned_data = convert_commas_to_floats(cleaned_data)
-    if not cleaned_data.empty and cleaned_data.shape[1] > 0:
-        cleaned_data.set_index(cleaned_data.columns[0], inplace=True)
-    else:
-        return no_update, False, go.Figure()
-
-    if selected_compounds:
-        if not isinstance(selected_compounds, list):
-            selected_compounds = [selected_compounds]
-    else:
-        selected_compounds = None
-
-    metadata = pd.DataFrame(metadata_dict)
-    metadata.set_index(metadata.columns[0], inplace=True)
-
-    ft_sirius_NPC = pd.DataFrame(canopus_dict)
-    ft_sirius_NPC = convert_commas_to_floats(ft_sirius_NPC)
-    ft_sirius_NPC.set_index(ft_sirius_NPC.columns[0], inplace=True)
-
-    cleaned_data.index.name = 'filename'
-    metadata.index.name = 'filename'
-    ft_sirius_NPC.index.name = 'compound_name'
-
-    if second_param and selected_samples2:
-        if not isinstance(selected_samples2, list):
-            selected_samples2 = [selected_samples2]
-        metadata = metadata[metadata[second_param].isin(selected_samples2)]
-
-    filtered_df = filter_merged_dataset(
-        cleaned_data=cleaned_data,
-        metadata=metadata.reset_index(),
-        ft_sirius=ft_sirius_NPC.reset_index(),
-        attribute_name=selected_param,
-        sample_locations=selected_locations,
-        threshold=threshold,
-        filter_class=None,
-        filter_prob=filter_prob,
-        filter_sirius=filter_sirius,
-        selected_compounds=selected_compounds 
-    )
-
-    n_features = filtered_df.shape[0] + 1
-    n_samples = filtered_df.shape[1] 
-    n_pathways = filtered_df['NPC#pathway'].nunique()
-    n_superclasses = filtered_df['NPC#superclass'].nunique()
-    n_classes = filtered_df['NPC#class'].nunique()
-
-    filtered_df.index.name = 'filename'
-    
-    summary = dbc.Row([
-        dbc.Col([
-            html.P(f"Retained features: {n_features}", className="mb-1"),
-            html.P(f"Retained samples: {n_samples}", className="mb-1"),
-        ], width=7),
-        dbc.Col([
-            html.P(f"Retained superclasses: {n_superclasses}", className="mb-1"),
-            html.P(f"Retained classes: {n_classes}", className="mb-1"),
-            html.P(f"Retained pathways: {n_pathways}", className="mb-1"),
-        ], width=7),
-    ])
-
-    if not isinstance(selected_locations, list):
-        selected_locations = [selected_locations]
-
-    # your plot branch stays the same...
-    # (sunburst / barplot / PCA / line_plot / RT_mz / rf)
-    # just keep passing the DataFrames as you already do
-
-    # ...
-    # return summary, True, fig
-
-    if tab_choice == 'sunburst':
-        if radio_choice == 'Intensity':
-         
-            fig = process_and_plot_intensity_NPC(
-                cleaned_data=cleaned_data,
-                metadata=metadata.reset_index(),
-                ft_sirius=ft_sirius_NPC.reset_index(),
-                attribute_name=selected_param,
-                sample_locations= selected_locations,
-                threshold=threshold,
-                node_color_map=node_color_map,
-                filter_class=None,  # You can later wire this up from another input
-                filter_prob=filter_prob,
-                filter_sirius=filter_sirius,
-                selected_compounds = selected_compounds,
-            )
-        elif radio_choice == 'Count':
-            
-            fig = process_and_plot_NPC_count(
-                cleaned_data=cleaned_data,
-                metadata=metadata.reset_index(),
-                ft_sirius=ft_sirius_NPC.reset_index(),
-                attribute_name=selected_param,
-                sample_locations=selected_locations,
-                threshold=threshold,
-                node_color_map=node_color_map,
-                filter_class=None,  # You can later wire this up from another input
-                filter_prob=filter_prob,
-                filter_sirius=filter_sirius,
-                selected_compounds = selected_compounds,
-            )
-
-        else:
-            fig = go.Figure()
-        
-    elif tab_choice == 'barplot':
-        fig = process_and_plot_barplot_NPC(
-            cleaned_data=cleaned_data,
-            metadata=metadata.reset_index(),
-            ft_sirius=ft_sirius_NPC.reset_index(),
-            attribute_name=selected_param,
-            sample_locations=selected_locations,
-            threshold=threshold,
-            node_color_map=node_color_map,
-            filter_class=None,
-            filter_prob=filter_prob,
-            filter_sirius=filter_sirius,
-            group_cols = checkbox_levels,
-            type_plot = radio_choice,
-            selected_compounds = selected_compounds,
-        )
-        
-    elif tab_choice == 'PCA':
-        fig = process_and_plot_pca(
-            cleaned_data=cleaned_data,
-            metadata=metadata.reset_index(),
-            ft_sirius=ft_sirius_NPC.reset_index(),
-            attribute_name=selected_param,
-            sample_locations=selected_locations,
-            threshold=threshold,
-            filter_class=None,
-            filter_prob=filter_prob,
-            filter_sirius=filter_sirius, 
-            selected_compounds = selected_compounds,
-        )   
-        
-    elif tab_choice == 'line_plot':
-        fig = process_and_plot_lineplot_NPC(
-            cleaned_data=cleaned_data,
-            metadata=metadata.reset_index(),
-            ft_sirius=ft_sirius_NPC.reset_index(),
-            attribute_name=selected_param,
-            sample_locations=selected_locations,
-            threshold=threshold,
-            node_color_map=node_color_map,
-            filter_class=None,
-            filter_prob=filter_prob,
-            filter_sirius=filter_sirius,
-            group_cols = checkbox_levels,
-            type_plot = radio_choice,
-            selected_compounds = selected_compounds,               
-        )
-    elif tab_choice == 'RT_mz':
-        fig = scatter_rt_mz(
-            cleaned_data=cleaned_data,
-            metadata=metadata.reset_index(),
-            ft_sirius=ft_sirius_NPC.reset_index(),
-            attribute_name=selected_param,
-            sample_locations=selected_locations,
-            threshold=threshold,
-            node_color_map=node_color_map,
-            filter_class=None,
-            filter_prob=filter_prob,
-            filter_sirius=filter_sirius,
-            group_cols = checkbox_levels,
-            type_plot = radio_choice,
-            selected_compounds = selected_compounds,
-        )
-
-    
-    elif tab_choice == "rf":
-        fig = process_and_plot_rf(
-            cleaned_data=cleaned_data,
-            metadata=metadata,
-            ft_sirius=ft_sirius_NPC,
-            group_col=selected_param,
-            sample_locations=selected_locations,
-            threshold=threshold,
-            filter_class=checkbox_levels,
-            filter_prob=filter_prob,
-            filter_sirius=filter_sirius,
-            type_plot=radio_choice
-        )
-        return summary, True, fig
-
-         
-    else:
-        fig = go.Figure()
-        
-    return summary, True, fig
-
-
-@callback(
-    Output("loading-display-output", "children"),
-    Input("load-files-button", "n_clicks"),
-)
-def load_output(n):
-    if n:
-        time.sleep(2)
-        return f"Data updated {n} times."
-    return no_update
-
-
-
-@callback(
-    Output("radio-mode-store", "data"),
-    Output("radio-intensity", "active"),
-    Output("radio-count", "active"),
-    Input("radio-intensity", "n_clicks"),
-    Input("radio-count", "n_clicks"),
-    prevent_initial_call=True
-)
-def toggle_radio_style(n_int, n_count):
-    if not ctx.triggered:
-        return dash.no_update
-    clicked = ctx.triggered[0]["prop_id"].split(".")[0]
-
-    if clicked == "radio-intensity":
-        return "Intensity", True, False
-    elif clicked == "radio-count":
-        return "Count", False, True
-
-    return dash.no_update
-    
-@callback(
-    Output('information-dropdown', 'options'),
-    Output('information-dropdown', 'value'),
-    Input('parameter-dropdown', 'value'),
-    Input('select-all-btn', 'n_clicks'),
-    State('store-metadata', 'data'),
-    State('information-dropdown', 'value'),
-    prevent_initial_call=True
-)
-def update_information_dropdown(selected_param, n_clicks, metadata_dic, current_selection):
-    if metadata_dic is None:
-        return [], None 
-    
-    metadata = pd.DataFrame(metadata_dic)
-
-    if selected_param is None or selected_param not in metadata.columns:
-        return [], None
-
-    unique_vals = metadata[selected_param].dropna().unique()
-    options = [{"label": val, "value": val} for val in unique_vals]
-    all_values = list(unique_vals)
-
-    # Use callback context to detect which input triggered the callback
-    triggered_id = ctx.triggered_id
-
-    if triggered_id == 'parameter-dropdown':
-        # Parameter changed: return new options and a default value (first one selected)
-        default_value = [all_values[0]] if all_values else []
-        return options, default_value
-
-    elif triggered_id == 'select-all-btn':
-        # Button clicked: toggle all vs none
-        if set(current_selection or []) == set(all_values):
-            return options, []  # Deselect all
-        else:
-            return options, all_values  # Select all
-
-    return options, current_selection
-
-@callback(
-    Output('information-dropdown2', 'options'),
-    Output('information-dropdown2', 'value'),
-    Input('parameter-dropdown2', 'value'),
-    Input('select-all-btn2', 'n_clicks'),
-    State('store-metadata', 'data'),
-    State('information-dropdown2', 'value'),
-    prevent_initial_call=True
-)
-def update_information_dropdown(selected_param, n_clicks, metadata_dic, current_selection):
-    if metadata_dic is None:
-        return [], None 
-    
-    metadata = pd.DataFrame(metadata_dic)
-
-    if selected_param is None or selected_param not in metadata.columns:
-        return [], None
-
-    unique_vals = metadata[selected_param].dropna().unique()
-    options = [{"label": val, "value": val} for val in unique_vals]
-    all_values = list(unique_vals)
-
-    # Use callback context to detect which input triggered the callback
-    triggered_id = ctx.triggered_id
-
-    if triggered_id == 'parameter-dropdown':
-        # Parameter changed: return new options and a default value (first one selected)
-        default_value = [all_values[0]] if all_values else []
-        return options, default_value
-
-    elif triggered_id == 'select-all-btn2':
-        # Button clicked: toggle all vs none
-        if set(current_selection or []) == set(all_values):
-            return options, []  # Deselect all
-        else:
-            return options, all_values  # Select all
-
-    return options, current_selection
-
-
-@callback(
-    Output('file-status-drop', 'children'),
-    Input('upload-peak-areas', 'filename'),
-    Input('upload-metadata', 'filename'),
-    Input('upload-canopus', 'filename'),
-    Input('upload-structure','filename'),
-)
-def show_uploaded_filenames(peak_name, meta_name, canopus_name,structure_name):
-    messages = []
-
-    if peak_name:
-        messages.append(f"📄 Peak Areas file: {peak_name}")
-    else:
-        messages.append("❌ Peak Areas file not uploaded")
-
-    if meta_name:
-        messages.append(f"📄 Metadata file: {meta_name}")
-    else:
-        messages.append("❌ Metadata file not uploaded")
-
-    if canopus_name:
-        messages.append(f"📄 Canopus file: {canopus_name}")
-    else:
-        messages.append("❌ Canopus file not uploaded")
-
-    if structure_name:
-        messages.append(f"📄 Sirius structure file: {structure_name}")
-    else:
-        messages.append("❌ Structure file not uploaded")
-
-    return html.Ul([html.Li(msg) for msg in messages])
-
-@callback(
-    Output('file-status', 'children'),
-    Input('store-peak-areas', 'data'),
-    Input('store-metadata', 'data'),
-    Input('store-canopus', 'data'),
-)
-
-
-def show_file_status(peak_data, meta_data, canopus_data):
-    messages = []
-    if peak_data:
-        messages.append("✅ Peak Areas loaded")
-    else:
-        messages.append("❌ Peak Areas missing")
-
-    if meta_data:
-        messages.append("✅ Metadata loaded")
-    else:
-        messages.append("❌ Metadata missing")
-
-    if canopus_data:
-        messages.append("✅ Canopus analysis loaded")
-    else:
-        messages.append("❌ Canopus analysis missing")
-
-    return html.Ul([html.Li(msg) for msg in messages]) 
-
-
-# Toggle collapse
-@callback(
-    Output("upload-panel", "is_open"),
-    Input("toggle-upload-panel", "n_clicks"),
-    State("upload-panel", "is_open"),
-    prevent_initial_call=True
-)
-
-
-def toggle_collapse(n_clicks, is_open):
-    return not is_open
-
-@callback(
-    Output("raw-settings-collapse", "is_open"),
-    Input("is-raw-checkbox", "value"),
-    State("raw-settings-collapse", "is_open"),
-)
-def toggle_collapse(raw_toggle_checked, is_open):
-    if raw_toggle_checked:
-        return True
-    return False
-
-from dash import callback, Output, Input, State, ctx, no_update
-import pandas as pd
-
-@callback(
-    Output('data-preview-table', 'data'),
-    Output('data-preview-table', 'columns'),
-    Input('preview-tabs', 'value'),
-    Input("store-current-step", "data"),
-    State('store-metadata', 'data'),
-    State('store-canopus', 'data'),
-)
-def update_data_preview(tab_selected, current_step_key, meta_data, cano_data):
-    if tab_selected == 'peak':
-        df = cache_get(current_step_key)
-        if df is None:
-            return [], []
-        df = df.head(10)
-    elif tab_selected == 'meta':
-        if not meta_data:
-            return [], []
-        df = pd.DataFrame(meta_data).head(10)
-    elif tab_selected == 'cano':
-        if not cano_data:
-            return [], []
-        df = pd.DataFrame(cano_data).head(10)
-    else:
-        return [], []
-
-    columns = [{"name": i, "id": i} for i in df.columns]
-    return df.to_dict('records'), columns
-
-
-# Enable 'Impute' after 'Blank Subtraction'
-@app.callback(
-    Output('btn-imputed', 'disabled'),
-    Input('btn-blanked', 'n_clicks'),
-)
-def enable_impute(n_clicks_blank):
-    if n_clicks_blank is None:
-        return True  # Keep the button disabled
-    return n_clicks_blank <= 0  # Disable if not clicked yet
-
-
-# Enable 'Normalization' after 'Impute'
-@app.callback(
-    Output('btn-normalized', 'disabled'),
-    Output('btn-scaled', 'disabled'),
-    Input('btn-imputed', 'n_clicks'),
-)
-def enable_impute(n_clicks_blank):
-    if n_clicks_blank is None:
-        return True, True  # Keep the button disabled
-    return n_clicks_blank <= 0,  n_clicks_blank <= 0 # Disable if not clicked yet
-
-@app.callback(
-    Output("upload-status", "children"),
-    Output('store-peak-areas', 'data'),   # now a KEY like "raw"
-    Output('store-canopus', 'data'),
-    Output('store-metadata', 'data'),
-    Output('parameter-dropdown', 'options'),
-    Output('parameter-dropdown2', 'options'),
-    Output('parameter-dropdown', 'value'),
-    Output('parameter-dropdown2', 'value'),
-    Input("load-files-button", "n_clicks"),
-    State("upload-peak-areas", "contents"),
-    State("upload-metadata", "contents"),
-    State("upload-canopus", "contents"),
-    State("upload-structure", "contents"),
-    State("is-raw-checkbox", "value"),
-    State("sample-pattern-input", "value"),
-    State("checkbox-trim", "value"),
-    prevent_initial_call=True
-)
-def handle_file_upload(n_clicks, peak_contents, metadata_contents, canopus_contents, structure_contents,
-                       is_raw, sample_pattern, checkbox_trim):
-    if not all([peak_contents, metadata_contents, canopus_contents]):
-        return dbc.Alert("Please upload all required files.", color="warning"), None, None, None, [], [], None, None
-
-    if not sample_pattern:
-        return dbc.Alert("Please enter a sample name pattern.", color="danger"), None, None, None, [], [], None, None
-
-    if is_raw:
-        pattern = sample_pattern
-        is_trim = "check_trim" in checkbox_trim
-        df1 = parse_contents(peak_contents, trim=is_trim)
-        df2 = parse_contents(canopus_contents)
-        df3 = parse_contents(metadata_contents)
-        df4 = parse_contents(structure_contents)
-
-        # Your pipeline
-        df1_p, df2_p = processing_raw_files(df1, df3, df2, df4, pattern)
-
-        # Downcast
-        df1_p = downcast_numeric(df1_p)
-        df2_p = downcast_numeric(df2_p)
-        df3   = downcast_numeric(df3)
-
-        # Put heavy frames in cache
-        raw_key = cache_put(df1_p, "raw")
-
-        # Keep metadata/canopus in Store
-        df3_dict = df3.to_dict("records")
-        cano_dict = df2_p.to_dict("records")
-
-        options = [{"label": col, "value": col} for col in df3.columns]
-        return (
-            dbc.Alert("Raw files uploaded and processed.", color="info"),
-            raw_key,                # store-peak-areas holds "raw"
-            cano_dict,
-            df3_dict,
-            options, options, df3.columns[1], df3.columns[1]
-        )
-    else:
-        df1 = parse_contents(peak_contents)
-        df2 = parse_contents(canopus_contents)
-        df3 = parse_contents(metadata_contents)
-
-        # Downcast
-        df1 = downcast_numeric(df1)
-        df2 = downcast_numeric(df2)
-        df3 = downcast_numeric(df3)
-
-        # Cache raw
-        raw_key = cache_put(df1, "raw")
-
-        options = [{"label": col, "value": col} for col in df3.columns]
-        return (
-            dbc.Alert("Processed files uploaded.", color="success"),
-            raw_key,                 # store-peak-areas holds "raw"
-            df2.to_dict("records"),
-            df3.to_dict("records"),
-            options, options, df3.columns[1], df3.columns[1]
-        )
-
-
-@app.callback(
-    Output('store-blanked', 'data'),                 # now "blanked"
-    Output('upload-status-blank', 'children'),
-    Input('btn-blanked', 'n_clicks'),
-    State('store-peak-areas', 'data'),               # "raw"
-    State('store-metadata', 'data'),
-    prevent_initial_call=True
-)
-def apply_blank(n_clicks, raw_key, meta_data):
-    if not raw_key or not meta_data:
-        return no_update, dbc.Alert("Missing input for blank subtraction.", color="danger")
-
-    ft = cache_get(raw_key)
-    if ft is None:
-        return no_update, dbc.Alert("Cached RAW data not found.", color="danger")
-
-    md = pd.DataFrame(meta_data)
-    ft = convert_commas_to_floats(ft).set_index(ft.columns[0])
-    md = convert_commas_to_floats(md).set_index(md.columns[0])
-    try:
-        cleaned_df, _ = blank_processing(ft, md)
-        cleaned_df = downcast_numeric(cleaned_df)
-        blanked_key = cache_put(cleaned_df, "blanked")
-        return blanked_key, dbc.Alert("Blank subtraction complete.", color="success")
-    except Exception as e:
-        return no_update, dbc.Alert(f"Blank subtraction failed: {e}", color="danger")
-
-
-@app.callback(
-    Output('store-imputed', 'data'),                 # "imputed"
-    Output('upload-status-imputation', 'children'),
-    Input('btn-imputed', 'n_clicks'),
-    State('store-blanked', 'data'),                  # "blanked"
-    prevent_initial_call=True
-)
-def apply_imputation(n_clicks, blanked_key):
-    if not blanked_key:
-        return no_update, dbc.Alert("No data to impute.", color="danger")
-
-    df = cache_get(blanked_key)
-    if df is None:
-        return no_update, dbc.Alert("Cached BLANKED data not found.", color="danger")
-
-    try:
-        imputed_df = imputation(df)
-        imputed_df = downcast_numeric(imputed_df)
-        imputed_key = cache_put(imputed_df, "imputed")
-        return imputed_key, dbc.Alert("Imputation complete.", color="success")
-    except Exception as e:
-        return no_update, dbc.Alert(f"Imputation failed: {e}", color="danger")
-
-
-@app.callback(
-    Output('store-normalized', 'data'),              # "normalized"
-    Output('upload-status-normalization', 'children'),
-    Input('btn-normalized', 'n_clicks'),
-    State('store-imputed', 'data'),                  # "imputed"
-    prevent_initial_call=True
-)
-def apply_normalization(n_clicks, imputed_key):
-    if not imputed_key:
-        return no_update, dbc.Alert("No data to normalize.", color="danger")
-
-    df = cache_get(imputed_key)
-    if df is None:
-        return no_update, dbc.Alert("Cached IMPUTED data not found.", color="danger")
-
-    try:
-        normalized_df = normalization(df)
-        normalized_df = downcast_numeric(normalized_df)
-        normalized_key = cache_put(normalized_df, "normalized")
-        return normalized_key, dbc.Alert("Normalization complete.", color="success")
-    except Exception as e:
-        return no_update, dbc.Alert(f"Normalization failed: {e}", color="danger")
-
-
-@app.callback(
-    Output('store-scaled', 'data'),                  # "scaled"
-    Output('upload-status-scaling', 'children'),
-    Input('btn-scaled', 'n_clicks'),
-    State('store-imputed', 'data'),                  # "imputed" (your pipeline uses imputed -> scaled)
-    prevent_initial_call=True
-)
-def apply_scaling(n_clicks, imputed_key):
-    if not imputed_key:
-        return no_update, dbc.Alert("No data to scale.", color="danger")
-
-    df = cache_get(imputed_key)
-    if df is None:
-        return no_update, dbc.Alert("Cached IMPUTED data not found.", color="danger")
-
-    try:
-        scaled_df = scaling(df)
-        scaled_df = downcast_numeric(scaled_df)
-        scaled_key = cache_put(scaled_df, "scaled")
-        return scaled_key, dbc.Alert("Scaling complete.", color="success")
-    except Exception as e:
-        return no_update, dbc.Alert(f"Scaling failed: {e}", color="danger")
-
-@callback(
-    Output('store-current-step', 'data'),  # e.g. "blanked"
-    Input('data-version-dropdown', 'value'),
-    State('store-peak-areas', 'data'),
-    State('store-blanked', 'data'),
-    State('store-imputed', 'data'),
-    State('store-normalized', 'data'),
-    State('store-scaled', 'data'),
-    prevent_initial_call=True
-)
-def update_current_step(selected_version, raw_key, blanked_key, imputed_key, normalized_key, scaled_key):
-    mapping = {
-        'raw': raw_key,
-        'blanked': blanked_key,
-        'imputed': imputed_key,
-        'normalized': normalized_key,
-        'scaled': scaled_key
-    }
-    key = mapping.get(selected_version)
-    if key:
-        return key
-    elif raw_key:
-        return raw_key
-    else:
-        return no_update
-
-
-@callback(
-    Output("download-dataframe-csv", "data"),
-    Input("download-btn", "n_clicks"),
-    State("store-current-step", "data"),
-    prevent_initial_call=True,
-)
-def download_csv(n_clicks, current_step_key):
-    df = cache_get(current_step_key)
-    if df is None:
-        return no_update
-
-    df = convert_commas_to_floats(df)
-    if not df.empty and df.shape[1] > 0:
-        df.set_index(df.columns[0], inplace=True)
-    else:
-        return no_update 
-
-    return dcc.send_data_frame(df.to_csv, 'data_processed.csv', index=True)
-
-
-@callback(
-    Output('store-compound-names', 'data'),
-    Input("store-current-step", "data"),
-    prevent_initial_call=True
-)
-def extract_compound_names(current_step_key):
-    if not current_step_key:
-        return []
-
-    df = cache_get(current_step_key)
-    if df is None or df.empty or df.shape[1] == 0:
-        return []
-
-    df = df.copy()
-    df.set_index(df.columns[0], inplace=True)
-
-    compound_names = [
-        col.rsplit('_', 1)[-1].rsplit(';', 1)[0]
-        for col in df.columns
-    ]
-    return compound_names
-
-
-
-@callback(
-    Output('compound_dropdown', 'options'),
-    #Output('compound_dropdown', 'value'),
-    Input('compound-search-input', 'value'),
-    Input('browse-compounds-checkbox', 'value'),
-    State('store-compound-names', 'data'),
-    prevent_initial_call=True
-)
-def update_information_dropdown(search_value, is_checked, compound_names):
-    if not is_checked:
-        return []
-
-    if not compound_names:
-        return []
-
-    if search_value:
-        filtered = [
-            name for name in compound_names
-            if search_value.lower() in name.lower()
-        ]
-    else:
-        filtered = []
-        #default_value = filtered[0] if filtered else None
-    # Limit to first 20 to keep UI light
-    filtered = filtered[:20]
-    
-    options = [{"label": name, "value": name} for name in filtered]
-    
-
-    return options
-
-
-
-@app.callback(
-    Output("compound-search-controls", "style"),
-    Input("browse-compounds-checkbox", "value"),
-)
-def toggle_search_controls(is_checked):
-    if is_checked:
-        return {"display": "block"}
-    return {"display": "none"}
-
-
-if __name__ == '__main__':
-    app.run(debug=True)    
-
-
-# In[19]:
-
-
 def processing_raw_files(peak_areas,metadata,canopus,structure,pattern):
     ft = peak_areas
     md = metadata
@@ -2372,10 +1153,6 @@ def generate_node_level_color_map(ft_sirius):
     color_map = dict(zip(all_labels, palette))
     return color_map
 
-# Node color mapping (placeholder; you can customize this)
-ft_sirius_NPC2 = pd.read_csv('NPC_ft.csv', index_col = 0)
-
-node_color_map = generate_node_level_color_map(ft_sirius_NPC2)
 
 
 # In[36]:
@@ -2400,6 +1177,1226 @@ def parse_contents(contents,trim=False):
     print("Index name:", df.index.name)
     print(df.head())
     return df
+
+
+
+jupyter_dash.default_mode="external"
+
+
+# In[17]:
+
+
+external_stylesheets = [dbc.themes.FLATLY]
+
+app = Dash(__name__, external_stylesheets=external_stylesheets,suppress_callback_exceptions=True)
+
+# Create the cache object first
+cache = Cache()
+
+
+# Then initialize it with the underlying Flask server
+cache.init_app(
+    app.server,
+    config={
+        "CACHE_TYPE": "filesystem",   # or "simple" for in-memory
+        "CACHE_DIR": "dash_cache",    # required for filesystem
+        "threshold": 500,             # max entries
+        "default_timeout": 24*3600,   # 1 day
+    }
+)
+
+
+selection_card = dbc.Card(
+    dbc.CardBody([
+        html.H5("Selection Options", className="card-title"),
+
+        dbc.Row([
+            dbc.Label("Select Data Version"),
+            dcc.Dropdown(
+                id='data-version-dropdown',
+                options=[
+                    {'label': 'Raw (Peak Areas)', 'value': 'raw'},
+                    {'label': 'Blanked', 'value': 'blanked'},
+                    {'label': 'Imputed', 'value': 'imputed'},
+                    {'label': 'Normalized', 'value': 'normalized'},
+                    {'label': 'Scaled', 'value': 'scaled'},
+                ],
+                value='raw',  # default selection
+                clearable=False,
+                
+            ),
+            
+        ], className="mb-3"),
+        
+        dbc.Row([
+            dbc.Label("Select parameter(s)"),
+            dcc.Dropdown(
+                id='parameter-dropdown',
+                options=[],
+                value=None,
+                clearable=False,
+            ),
+
+            dcc.Dropdown(
+                id='parameter-dropdown2',
+                options=[],   # filled dynamically or same as first
+                multi=False,
+                placeholder='Select second grouping parameter (optional)'
+            ),
+                
+        ], className="mb-3"),
+
+        dbc.Label("Select information for plotting:"),        
+        dbc.Row([
+            dbc.Col(
+                [
+                    
+                    dcc.Dropdown(
+                        id='information-dropdown',
+                        options=[],
+                        value=None,
+                        multi=True
+                    ),
+                ],
+                width=8
+            ),
+            dbc.Col(
+                dbc.Button("Select All", id="select-all-btn", color="primary"),
+                width="auto"
+            ),
+            dbc.Col(
+                [
+                    
+                    dcc.Dropdown(
+                        id='information-dropdown2',
+                        options=[],
+                        value=None,
+                        multi=True
+                    ),
+                ],
+                width=8
+            ),
+
+             dbc.Col(
+                dbc.Button("Select All", id="select-all-btn2", color="primary"),
+                width="auto"
+            ),
+            
+        ]),
+        
+    ]),
+    className="mb-4 g-3",
+)
+# --- First card: Buttons and Checkboxes
+controls_card = dbc.Card(
+    dbc.CardBody([
+        html.H5("Display Options", className="card-title"),
+
+        dbc.ButtonGroup(
+            [
+                dbc.Button("Intensity", id="radio-intensity", color="primary", outline=True, active=True, n_clicks=0, size="sm", className="mx-1"),
+                dbc.Button("Count", id="radio-count", color="primary", outline=True, active=False, n_clicks=0, size="sm", className="mx-1"),
+            ],
+            className="mb-4 g-3",
+            id="radio-style-buttons",
+        ),
+
+        html.H6("Group By", className="card-subtitle mb-2 text-muted"),
+
+        dbc.Checklist(
+            options=[
+                {"label": "Pathway", "value": "NPC#pathway"},
+                {"label": "Superclass", "value": "NPC#superclass"},
+                {"label": "Class", "value": "NPC#class"},
+            ],
+            value=[ "NPC#pathway", "NPC#superclass","NPC#class"],  # default checked
+            id="checkbox-levels",
+            inline=True,
+            switch=True,
+        ),
+ 
+    ]),
+    className="mb-4 g-3",
+    #style={"width": "22rem", "minWidth": "300px"},
+)
+
+# --- Second card: Sliders
+sliders_card = dbc.Card(
+    dbc.CardBody([
+        html.H5("Filters", className="card-title"),
+
+        dbc.Label("Threshold:", className="mt-2"),
+        dcc.Slider(
+            id='threshold-slider',
+            min=0, max=1, step=0.01, value=0.1, marks=None,
+            tooltip={"placement": "bottom", "always_visible": True},
+        ),
+
+        dbc.Label("Min Probability:", className="mt-4"),
+        dcc.Slider(
+            id='probability-slider',
+            min=0, max=1, step=0.05, value=0.3, marks=None,
+            tooltip={"placement": "bottom", "always_visible": True},
+        ),
+
+        dbc.Label("Min Sirius Score:", className="mt-4"),
+        dcc.Slider(
+            id='sirius-slider',
+            min=0, max=1, step=0.05, value=0.5, marks=None,
+            tooltip={"placement": "bottom", "always_visible": True},
+        ),
+    ]),
+     className="mb-4 g-3",
+    #style={"width": "25rem", "minWidth": "320px"},a
+)
+
+
+# --- Third card: Toat information
+
+toast_card = dbc.Card(
+    dbc.Toast(
+        id="data-summary-toast",
+        header="Data Summary",
+        icon="info",
+        dismissable=True,
+        is_open=False  # closes automatically after 8s
+    )
+
+)
+
+# --- Fourth card: Specific compound selector
+
+compound_selection_card = dbc.Card(
+        dbc.CardBody([
+            dbc.Checkbox(
+                id='browse-compounds-checkbox',
+                label="Browse by specific items"
+            ),
+            html.Div(  # this div wraps the searchable UI and starts hidden
+                [
+                    dbc.Label("Search compound name"),
+                    dcc.Input(
+                        id='compound-search-input', 
+                        type='text',
+                        placeholder='Type part of compound name...'
+                    ),
+                    dcc.Dropdown(
+                        id='compound_dropdown',
+                        options=[],
+                        value=[],
+                        clearable=False,
+                        multi=True,
+                    )
+                ],
+                id="compound-search-controls",
+                style={"display": "none"}  # hidden by default
+            )
+        ])
+    )
+ 
+
+
+
+app.layout = dbc.Container([
+
+
+    dcc.Store(id='store-peak-areas'),
+    dcc.Store(id='store-metadata'),
+    dcc.Store(id='store-canopus'),
+    dcc.Store(id="radio-mode-store", data="Intensity"),
+    dcc.Store(id='store-blanked'),       # after blank subtraction
+    dcc.Store(id='store-imputed'),       # after imputation
+    dcc.Store(id='store-normalized'),    # after normalization
+    dcc.Store(id='store-scaled'),        # after scaling
+    dcc.Store(id="store-current-step"),
+    dcc.Store(id='store-compound-names'),
+    
+    dbc.Row([
+        html.H2("Sirius-Canopus visualization of LC-MS data")
+    ]),
+    
+    dbc.Button("Show/Hide Upload Panel", id="toggle-upload-panel", className="mb-2", color="primary"),
+    
+    dbc.Collapse([
+        dbc.Row([
+            dbc.Col([
+                html.H5("Upload Peak Areas"),
+                dcc.Upload(
+                    id='upload-peak-areas',
+                    children=html.Div(['Drag and Drop or ', html.A('Select File')]),
+                    multiple=False,
+                    accept='.csv',
+                    style={'border': '1px dashed #aaa', 'padding': '10px'}
+                ),
+            ]),
+            dbc.Col([
+                html.H5("Upload Metadata"),
+                dcc.Upload(
+                    id='upload-metadata',
+                    children=html.Div(['Drag and Drop or ', html.A('Select File')]),
+                    multiple=False,
+                    accept='.csv',
+                    style={'border': '1px dashed #aaa', 'padding': '10px'}
+                ),
+            ]),
+            dbc.Col([
+                html.H5("Upload CANOPUS"),
+                dcc.Upload(
+                    id='upload-canopus',
+                    children=html.Div(['Drag and Drop or ', html.A('Select File')]),
+                    multiple=False,
+                    accept= '.csv,.tsv',
+                    style={'border': '1px dashed #aaa', 'padding': '10px'}
+                ),
+            ]),
+            dbc.Col([
+                html.H5("Upload SIRIUS structure"),
+                dcc.Upload(
+                    id='upload-structure',
+                    children=html.Div(['Drag and Drop or ', html.A('Select File')]),
+                    multiple=False,
+                    accept= '.csv,.tsv',
+                    style={'border': '1px dashed #aaa', 'padding': '10px'}
+                ),
+            ]),            
+            
+            dbc.Col([
+                html.Div(id='file-status'),
+                ]),
+        ]),
+        
+        dbc.Row([
+            dbc.Col([
+                html.Div(id='file-status-drop', style={'marginTop': '15px'})
+                    ])
+                ]),
+        
+        dbc.Row([
+            dbc.Col([
+                dbc.Checkbox(id='is-raw-checkbox', label='Files are raw (need processing)', value=False)
+            ]),]),
+                dbc.Collapse(
+                id="raw-settings-collapse",
+                is_open=False,
+                children=[
+                    dbc.Card(
+                        dbc.CardBody([
+                            dbc.Checklist(options=[{"label": "Trim raw file", "value": "check_trim"}],
+                                                               value=["check_trim"],  # default checked
+                                                                id="checkbox-trim",
+                                                                inline=True,
+                                                                switch=True),
+                            html.Label("Sample name pattern:"),
+                            dbc.Input(id="sample-pattern-input", placeholder="e.g., sample_*_rep*", type="text"),
+
+
+                            dbc.Row([
+                                dbc.Col([
+                                        
+                            
+                                    dbc.Label("Blank Threshold:", className="mt-2"),
+                                    dcc.Slider(
+                                            id='blank-slider',
+                                            min=0, max=1, step=0.01, value=0.1, marks=None,
+                                            tooltip={"placement": "bottom", "always_visible": True}
+                                        
+                                        )], width=3
+                                       ),
+                                
+                                 dbc.Col(
+                                    dbc.ButtonGroup([
+                                        dbc.Button("Blanked", id="btn-blanked", color="primary", outline=False, className="me-1"),
+                                        dbc.Button("Imputed", id="btn-imputed", color="success", outline=False, className="me-1", disabled=True),
+                                        dbc.Button("Normalized", id="btn-normalized", color="info", outline=False, className="me-1", disabled=True),
+                                        dbc.Button("Scaled", id="btn-scaled", color="warning", outline=False, className="me-1",disabled=True),
+                                    ],
+                                    size="lg"),
+                                    width=9,
+                                    className="d-flex align-items-center justify-content-center"
+                                )
+                            ])
+                            
+
+                            
+                        ])
+                    )
+                ]
+            ),
+        
+        
+        dbc.Row([
+            dbc.Col(
+            dbc.Button("Load Files", id="load-files-button", color="primary"),
+            width="auto"
+            ),
+            dbc.Col(
+            dcc.Loading(
+            html.Div("", id="loading-display-output"),
+            id="loading-display"
+        ),   
+            ),
+            dbc.Col(
+            html.Div(id="upload-status"),
+            width=True  # Automatically takes remaining space
+        ),
+            dbc.Col(
+            html.Div(id="upload-status-blank"),
+            width=True  # Automatically takes remaining space
+        ),
+            dbc.Col(
+            html.Div(id="upload-status-imputation"),
+            width=True  # Automatically takes remaining space
+        ),
+            dbc.Col(
+            html.Div(id="upload-status-normalization"),
+            width=True  # Automatically takes remaining space
+        ),
+            dbc.Col(
+            html.Div(id="upload-status-scaling"),
+            width=True  # Automatically takes remaining space
+        ),
+        ], align="center", className="mb-3")
+    ], id="upload-panel", is_open=False),
+
+
+
+
+    
+
+    
+    
+
+    dbc.Row([
+        dbc.Col([sliders_card,
+                 toast_card,
+                compound_selection_card]),
+        dbc.Col([controls_card,
+               selection_card]),
+        
+    ], className="mb-4 4 mt-4"),  # g-3 adds small gap between cols
+    
+ 
+    dbc.Tabs(
+        id='tabs-final-plot',
+        active_tab='sunburst',
+        children=[
+            dbc.Tab(label='Sunburst Plot', tab_id='sunburst'),
+            dbc.Tab(label='Barplot', tab_id='barplot'),
+            dbc.Tab(label='PCA', tab_id = 'PCA'),
+            dbc.Tab(label='line_plot', tab_id = 'line_plot'),
+            dbc.Tab(label='Random Forest', tab_id='rf'),
+    ]),
+
+    dbc.Spinner(
+        dcc.Graph(id='final-graph',
+                 config={
+        "toImageButtonOptions": {
+            "format": "svg",  # one of png, svg, jpeg, webp
+            "filename": "my_plot",
+            "height": 600,
+            "width": 800,
+            "scale": 1
+        }}),
+        color="primary",  # 'primary', 'secondary', 'success', etc.
+        type="border",    # or 'grow'
+        fullscreen=False,  # You can set to True for full-page overlay
+        size="md",        # 'sm', 'md', 'lg'
+        spinner_style={"width": "3rem", "height": "3rem"}  # optional custom style
+    ),
+    
+    dbc.Row([
+        html.H4("Data Preview"),
+        dcc.Tabs(id="preview-tabs", value='peak', children=[
+        dcc.Tab(label='Peak Areas', value='peak'),
+        dcc.Tab(label='Metadata', value='meta'),
+        dcc.Tab(label='CANOPUS', value='cano'),
+        ]),
+        dash_table.DataTable(id='data-preview-table',
+                     style_table={'overflowX': 'auto'},
+                     page_size=5),
+            ]),
+    dbc.Row([
+    dbc.Button("Download CSV", id="download-btn", color="primary", className="mb-2"),
+    dcc.Download(id="download-dataframe-csv"),          
+    ]),
+    
+], fluid=True)
+
+
+# In[18]:
+
+
+@callback(
+    Output("data-summary-toast", "children"),
+    Output("data-summary-toast", "is_open"),
+    Output('final-graph', 'figure'),
+    Input('tabs-final-plot', 'active_tab'),
+    Input('parameter-dropdown', 'value'),
+    Input('parameter-dropdown2', 'value'),  
+    Input('information-dropdown', 'value'),
+    Input('information-dropdown2', 'value'),
+    Input('threshold-slider', 'value'),
+    Input('probability-slider', 'value'),
+    Input('sirius-slider', 'value'),
+    Input('radio-mode-store', 'data'),
+    Input('checkbox-levels', 'value'),
+    Input("store-current-step", "data"),    # <-- key, not big JSON
+    Input("compound_dropdown", "value"),
+    State('store-metadata', 'data'),
+    State('store-canopus', 'data'),
+)
+def update_sunburst(tab_choice, selected_param, second_param, selected_locations,
+                    selected_samples2, threshold, filter_prob, filter_sirius,
+                    radio_choice, checkbox_levels, current_step_key, selected_compounds,
+                    metadata_dict, canopus_dict):
+
+    if not selected_locations or not metadata_dict or not canopus_dict or not current_step_key:
+        return no_update, False, go.Figure()
+
+    cleaned_data = cache_get(current_step_key)  # <-- fetch from cache
+    if cleaned_data is None:
+        return no_update, False, go.Figure()
+
+    cleaned_data = convert_commas_to_floats(cleaned_data)
+    if not cleaned_data.empty and cleaned_data.shape[1] > 0:
+        cleaned_data.set_index(cleaned_data.columns[0], inplace=True)
+    else:
+        return no_update, False, go.Figure()
+
+    if selected_compounds:
+        if not isinstance(selected_compounds, list):
+            selected_compounds = [selected_compounds]
+    else:
+        selected_compounds = None
+
+    metadata = pd.DataFrame(metadata_dict)
+    metadata.set_index(metadata.columns[0], inplace=True)
+
+    ft_sirius_NPC = pd.DataFrame(canopus_dict)
+    ft_sirius_NPC = convert_commas_to_floats(ft_sirius_NPC)
+    ft_sirius_NPC.set_index(ft_sirius_NPC.columns[0], inplace=True)
+
+    cleaned_data.index.name = 'filename'
+    metadata.index.name = 'filename'
+    ft_sirius_NPC.index.name = 'compound_name'
+    node_color_map = generate_node_level_color_map(ft_sirius_NPC)
+    
+    if second_param and selected_samples2:
+        if not isinstance(selected_samples2, list):
+            selected_samples2 = [selected_samples2]
+        metadata = metadata[metadata[second_param].isin(selected_samples2)]
+
+    filtered_df = filter_merged_dataset(
+        cleaned_data=cleaned_data,
+        metadata=metadata.reset_index(),
+        ft_sirius=ft_sirius_NPC.reset_index(),
+        attribute_name=selected_param,
+        sample_locations=selected_locations,
+        threshold=threshold,
+        filter_class=None,
+        filter_prob=filter_prob,
+        filter_sirius=filter_sirius,
+        selected_compounds=selected_compounds 
+    )
+
+    n_features = filtered_df.shape[0] + 1
+    n_samples = filtered_df.shape[1] 
+    n_pathways = filtered_df['NPC#pathway'].nunique()
+    n_superclasses = filtered_df['NPC#superclass'].nunique()
+    n_classes = filtered_df['NPC#class'].nunique()
+
+    filtered_df.index.name = 'filename'
+    
+    summary = dbc.Row([
+        dbc.Col([
+            html.P(f"Retained features: {n_features}", className="mb-1"),
+            html.P(f"Retained samples: {n_samples}", className="mb-1"),
+        ], width=7),
+        dbc.Col([
+            html.P(f"Retained superclasses: {n_superclasses}", className="mb-1"),
+            html.P(f"Retained classes: {n_classes}", className="mb-1"),
+            html.P(f"Retained pathways: {n_pathways}", className="mb-1"),
+        ], width=7),
+    ])
+
+    if not isinstance(selected_locations, list):
+        selected_locations = [selected_locations]
+
+    # your plot branch stays the same...
+    # (sunburst / barplot / PCA / line_plot / RT_mz / rf)
+    # just keep passing the DataFrames as you already do
+
+    # ...
+    # return summary, True, fig
+
+    if tab_choice == 'sunburst':
+        if radio_choice == 'Intensity':
+         
+            fig = process_and_plot_intensity_NPC(
+                cleaned_data=cleaned_data,
+                metadata=metadata.reset_index(),
+                ft_sirius=ft_sirius_NPC.reset_index(),
+                attribute_name=selected_param,
+                sample_locations= selected_locations,
+                threshold=threshold,
+                node_color_map=node_color_map,
+                filter_class=None,  # You can later wire this up from another input
+                filter_prob=filter_prob,
+                filter_sirius=filter_sirius,
+                selected_compounds = selected_compounds,
+            )
+        elif radio_choice == 'Count':
+            
+            fig = process_and_plot_NPC_count(
+                cleaned_data=cleaned_data,
+                metadata=metadata.reset_index(),
+                ft_sirius=ft_sirius_NPC.reset_index(),
+                attribute_name=selected_param,
+                sample_locations=selected_locations,
+                threshold=threshold,
+                node_color_map=node_color_map,
+                filter_class=None,  # You can later wire this up from another input
+                filter_prob=filter_prob,
+                filter_sirius=filter_sirius,
+                selected_compounds = selected_compounds,
+            )
+
+        else:
+            fig = go.Figure()
+        
+    elif tab_choice == 'barplot':
+        fig = process_and_plot_barplot_NPC(
+            cleaned_data=cleaned_data,
+            metadata=metadata.reset_index(),
+            ft_sirius=ft_sirius_NPC.reset_index(),
+            attribute_name=selected_param,
+            sample_locations=selected_locations,
+            threshold=threshold,
+            node_color_map=node_color_map,
+            filter_class=None,
+            filter_prob=filter_prob,
+            filter_sirius=filter_sirius,
+            group_cols = checkbox_levels,
+            type_plot = radio_choice,
+            selected_compounds = selected_compounds,
+        )
+        
+    elif tab_choice == 'PCA':
+        fig = process_and_plot_pca(
+            cleaned_data=cleaned_data,
+            metadata=metadata.reset_index(),
+            ft_sirius=ft_sirius_NPC.reset_index(),
+            attribute_name=selected_param,
+            sample_locations=selected_locations,
+            threshold=threshold,
+            filter_class=None,
+            filter_prob=filter_prob,
+            filter_sirius=filter_sirius, 
+            selected_compounds = selected_compounds,
+        )   
+        
+    elif tab_choice == 'line_plot':
+        fig = process_and_plot_lineplot_NPC(
+            cleaned_data=cleaned_data,
+            metadata=metadata.reset_index(),
+            ft_sirius=ft_sirius_NPC.reset_index(),
+            attribute_name=selected_param,
+            sample_locations=selected_locations,
+            threshold=threshold,
+            node_color_map=node_color_map,
+            filter_class=None,
+            filter_prob=filter_prob,
+            filter_sirius=filter_sirius,
+            group_cols = checkbox_levels,
+            type_plot = radio_choice,
+            selected_compounds = selected_compounds,               
+        )
+    elif tab_choice == 'RT_mz':
+        fig = scatter_rt_mz(
+            cleaned_data=cleaned_data,
+            metadata=metadata.reset_index(),
+            ft_sirius=ft_sirius_NPC.reset_index(),
+            attribute_name=selected_param,
+            sample_locations=selected_locations,
+            threshold=threshold,
+            node_color_map=node_color_map,
+            filter_class=None,
+            filter_prob=filter_prob,
+            filter_sirius=filter_sirius,
+            group_cols = checkbox_levels,
+            type_plot = radio_choice,
+            selected_compounds = selected_compounds,
+        )
+
+    
+    elif tab_choice == "rf":
+        fig = process_and_plot_rf(
+            cleaned_data=cleaned_data,
+            metadata=metadata,
+            ft_sirius=ft_sirius_NPC,
+            group_col=selected_param,
+            sample_locations=selected_locations,
+            threshold=threshold,
+            filter_class=checkbox_levels,
+            filter_prob=filter_prob,
+            filter_sirius=filter_sirius,
+            type_plot=radio_choice
+        )
+        return summary, True, fig
+
+         
+    else:
+        fig = go.Figure()
+        
+    return summary, True, fig
+
+
+@callback(
+    Output("loading-display-output", "children"),
+    Input("load-files-button", "n_clicks"),
+)
+def load_output(n):
+    if n:
+        time.sleep(2)
+        return f"Data updated {n} times."
+    return no_update
+
+
+
+@callback(
+    Output("radio-mode-store", "data"),
+    Output("radio-intensity", "active"),
+    Output("radio-count", "active"),
+    Input("radio-intensity", "n_clicks"),
+    Input("radio-count", "n_clicks"),
+    prevent_initial_call=True
+)
+def toggle_radio_style(n_int, n_count):
+    if not ctx.triggered:
+        return dash.no_update
+    clicked = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    if clicked == "radio-intensity":
+        return "Intensity", True, False
+    elif clicked == "radio-count":
+        return "Count", False, True
+
+    return dash.no_update
+    
+@callback(
+    Output('information-dropdown', 'options'),
+    Output('information-dropdown', 'value'),
+    Input('parameter-dropdown', 'value'),
+    Input('select-all-btn', 'n_clicks'),
+    State('store-metadata', 'data'),
+    State('information-dropdown', 'value'),
+    prevent_initial_call=True
+)
+def update_information_dropdown(selected_param, n_clicks, metadata_dic, current_selection):
+    if metadata_dic is None:
+        return [], None 
+    
+    metadata = pd.DataFrame(metadata_dic)
+
+    if selected_param is None or selected_param not in metadata.columns:
+        return [], None
+
+    unique_vals = metadata[selected_param].dropna().unique()
+    options = [{"label": val, "value": val} for val in unique_vals]
+    all_values = list(unique_vals)
+
+    # Use callback context to detect which input triggered the callback
+    triggered_id = ctx.triggered_id
+
+    if triggered_id == 'parameter-dropdown':
+        # Parameter changed: return new options and a default value (first one selected)
+        default_value = [all_values[0]] if all_values else []
+        return options, default_value
+
+    elif triggered_id == 'select-all-btn':
+        # Button clicked: toggle all vs none
+        if set(current_selection or []) == set(all_values):
+            return options, []  # Deselect all
+        else:
+            return options, all_values  # Select all
+
+    return options, current_selection
+
+@callback(
+    Output('information-dropdown2', 'options'),
+    Output('information-dropdown2', 'value'),
+    Input('parameter-dropdown2', 'value'),
+    Input('select-all-btn2', 'n_clicks'),
+    State('store-metadata', 'data'),
+    State('information-dropdown2', 'value'),
+    prevent_initial_call=True
+)
+def update_information_dropdown(selected_param, n_clicks, metadata_dic, current_selection):
+    if metadata_dic is None:
+        return [], None 
+    
+    metadata = pd.DataFrame(metadata_dic)
+
+    if selected_param is None or selected_param not in metadata.columns:
+        return [], None
+
+    unique_vals = metadata[selected_param].dropna().unique()
+    options = [{"label": val, "value": val} for val in unique_vals]
+    all_values = list(unique_vals)
+
+    # Use callback context to detect which input triggered the callback
+    triggered_id = ctx.triggered_id
+
+    if triggered_id == 'parameter-dropdown':
+        # Parameter changed: return new options and a default value (first one selected)
+        default_value = [all_values[0]] if all_values else []
+        return options, default_value
+
+    elif triggered_id == 'select-all-btn2':
+        # Button clicked: toggle all vs none
+        if set(current_selection or []) == set(all_values):
+            return options, []  # Deselect all
+        else:
+            return options, all_values  # Select all
+
+    return options, current_selection
+
+
+@callback(
+    Output('file-status-drop', 'children'),
+    Input('upload-peak-areas', 'filename'),
+    Input('upload-metadata', 'filename'),
+    Input('upload-canopus', 'filename'),
+    Input('upload-structure','filename'),
+)
+def show_uploaded_filenames(peak_name, meta_name, canopus_name,structure_name):
+    messages = []
+
+    if peak_name:
+        messages.append(f"📄 Peak Areas file: {peak_name}")
+    else:
+        messages.append("❌ Peak Areas file not uploaded")
+
+    if meta_name:
+        messages.append(f"📄 Metadata file: {meta_name}")
+    else:
+        messages.append("❌ Metadata file not uploaded")
+
+    if canopus_name:
+        messages.append(f"📄 Canopus file: {canopus_name}")
+    else:
+        messages.append("❌ Canopus file not uploaded")
+
+    if structure_name:
+        messages.append(f"📄 Sirius structure file: {structure_name}")
+    else:
+        messages.append("❌ Structure file not uploaded")
+
+    return html.Ul([html.Li(msg) for msg in messages])
+
+@callback(
+    Output('file-status', 'children'),
+    Input('store-peak-areas', 'data'),
+    Input('store-metadata', 'data'),
+    Input('store-canopus', 'data'),
+)
+
+
+def show_file_status(peak_data, meta_data, canopus_data):
+    messages = []
+    if peak_data:
+        messages.append("✅ Peak Areas loaded")
+    else:
+        messages.append("❌ Peak Areas missing")
+
+    if meta_data:
+        messages.append("✅ Metadata loaded")
+    else:
+        messages.append("❌ Metadata missing")
+
+    if canopus_data:
+        messages.append("✅ Canopus analysis loaded")
+    else:
+        messages.append("❌ Canopus analysis missing")
+
+    return html.Ul([html.Li(msg) for msg in messages]) 
+
+
+# Toggle collapse
+@callback(
+    Output("upload-panel", "is_open"),
+    Input("toggle-upload-panel", "n_clicks"),
+    State("upload-panel", "is_open"),
+    prevent_initial_call=True
+)
+
+
+def toggle_collapse(n_clicks, is_open):
+    return not is_open
+
+@callback(
+    Output("raw-settings-collapse", "is_open"),
+    Input("is-raw-checkbox", "value"),
+    State("raw-settings-collapse", "is_open"),
+)
+def toggle_collapse(raw_toggle_checked, is_open):
+    if raw_toggle_checked:
+        return True
+    return False
+
+from dash import callback, Output, Input, State, ctx, no_update
+import pandas as pd
+
+@callback(
+    Output('data-preview-table', 'data'),
+    Output('data-preview-table', 'columns'),
+    Input('preview-tabs', 'value'),
+    Input("store-current-step", "data"),
+    State('store-metadata', 'data'),
+    State('store-canopus', 'data'),
+)
+def update_data_preview(tab_selected, current_step_key, meta_data, cano_data):
+    if tab_selected == 'peak':
+        df = cache_get(current_step_key)
+        if df is None:
+            return [], []
+        df = df.head(10)
+    elif tab_selected == 'meta':
+        if not meta_data:
+            return [], []
+        df = pd.DataFrame(meta_data).head(10)
+    elif tab_selected == 'cano':
+        if not cano_data:
+            return [], []
+        df = pd.DataFrame(cano_data).head(10)
+    else:
+        return [], []
+
+    columns = [{"name": i, "id": i} for i in df.columns]
+    return df.to_dict('records'), columns
+
+
+# Enable 'Impute' after 'Blank Subtraction'
+@app.callback(
+    Output('btn-imputed', 'disabled'),
+    Input('btn-blanked', 'n_clicks'),
+)
+def enable_impute(n_clicks_blank):
+    if n_clicks_blank is None:
+        return True  # Keep the button disabled
+    return n_clicks_blank <= 0  # Disable if not clicked yet
+
+
+# Enable 'Normalization' after 'Impute'
+@app.callback(
+    Output('btn-normalized', 'disabled'),
+    Output('btn-scaled', 'disabled'),
+    Input('btn-imputed', 'n_clicks'),
+)
+def enable_impute(n_clicks_blank):
+    if n_clicks_blank is None:
+        return True, True  # Keep the button disabled
+    return n_clicks_blank <= 0,  n_clicks_blank <= 0 # Disable if not clicked yet
+
+@app.callback(
+    Output("upload-status", "children"),
+    Output('store-peak-areas', 'data'),   # now a KEY like "raw"
+    Output('store-canopus', 'data'),
+    Output('store-metadata', 'data'),
+    Output('parameter-dropdown', 'options'),
+    Output('parameter-dropdown2', 'options'),
+    Output('parameter-dropdown', 'value'),
+    Output('parameter-dropdown2', 'value'),
+    Input("load-files-button", "n_clicks"),
+    State("upload-peak-areas", "contents"),
+    State("upload-metadata", "contents"),
+    State("upload-canopus", "contents"),
+    State("upload-structure", "contents"),
+    State("is-raw-checkbox", "value"),
+    State("sample-pattern-input", "value"),
+    State("checkbox-trim", "value"),
+    prevent_initial_call=True
+)
+def handle_file_upload(n_clicks, peak_contents, metadata_contents, canopus_contents, structure_contents,
+                       is_raw, sample_pattern, checkbox_trim):
+    if not all([peak_contents, metadata_contents, canopus_contents]):
+        return dbc.Alert("Please upload all required files.", color="warning"), None, None, None, [], [], None, None
+
+    if not sample_pattern:
+        return dbc.Alert("Please enter a sample name pattern.", color="danger"), None, None, None, [], [], None, None
+
+    if is_raw:
+        pattern = sample_pattern
+        is_trim = "check_trim" in checkbox_trim
+        df1 = parse_contents(peak_contents, trim=is_trim)
+        df2 = parse_contents(canopus_contents)
+        df3 = parse_contents(metadata_contents)
+        df4 = parse_contents(structure_contents)
+
+        # Your pipeline
+        df1_p, df2_p = processing_raw_files(df1, df3, df2, df4, pattern)
+
+        # Downcast
+        df1_p = downcast_numeric(df1_p)
+        df2_p = downcast_numeric(df2_p)
+        df3   = downcast_numeric(df3)
+
+        # Put heavy frames in cache
+        raw_key = cache_put(df1_p, "raw")
+
+        # Keep metadata/canopus in Store
+        df3_dict = df3.to_dict("records")
+        cano_dict = df2_p.to_dict("records")
+
+        options = [{"label": col, "value": col} for col in df3.columns]
+        return (
+            dbc.Alert("Raw files uploaded and processed.", color="info"),
+            raw_key,                # store-peak-areas holds "raw"
+            cano_dict,
+            df3_dict,
+            options, options, df3.columns[1], df3.columns[1]
+        )
+    else:
+        df1 = parse_contents(peak_contents)
+        df2 = parse_contents(canopus_contents)
+        df3 = parse_contents(metadata_contents)
+
+        # Downcast
+        df1 = downcast_numeric(df1)
+        df2 = downcast_numeric(df2)
+        df3 = downcast_numeric(df3)
+
+        # Cache raw
+        raw_key = cache_put(df1, "raw")
+
+        options = [{"label": col, "value": col} for col in df3.columns]
+        return (
+            dbc.Alert("Processed files uploaded.", color="success"),
+            raw_key,                 # store-peak-areas holds "raw"
+            df2.to_dict("records"),
+            df3.to_dict("records"),
+            options, options, df3.columns[1], df3.columns[1]
+        )
+
+
+@app.callback(
+    Output('store-blanked', 'data'),                 # now "blanked"
+    Output('upload-status-blank', 'children'),
+    Input('btn-blanked', 'n_clicks'),
+    State('store-peak-areas', 'data'),               # "raw"
+    State('store-metadata', 'data'),
+    prevent_initial_call=True
+)
+def apply_blank(n_clicks, raw_key, meta_data):
+    if not raw_key or not meta_data:
+        return no_update, dbc.Alert("Missing input for blank subtraction.", color="danger")
+
+    ft = cache_get(raw_key)
+    if ft is None:
+        return no_update, dbc.Alert("Cached RAW data not found.", color="danger")
+
+    md = pd.DataFrame(meta_data)
+    ft = convert_commas_to_floats(ft).set_index(ft.columns[0])
+    md = convert_commas_to_floats(md).set_index(md.columns[0])
+    try:
+        cleaned_df, _ = blank_processing(ft, md)
+        cleaned_df = downcast_numeric(cleaned_df)
+        blanked_key = cache_put(cleaned_df, "blanked")
+        return blanked_key, dbc.Alert("Blank subtraction complete.", color="success")
+    except Exception as e:
+        return no_update, dbc.Alert(f"Blank subtraction failed: {e}", color="danger")
+
+
+@app.callback(
+    Output('store-imputed', 'data'),                 # "imputed"
+    Output('upload-status-imputation', 'children'),
+    Input('btn-imputed', 'n_clicks'),
+    State('store-blanked', 'data'),                  # "blanked"
+    prevent_initial_call=True
+)
+def apply_imputation(n_clicks, blanked_key):
+    if not blanked_key:
+        return no_update, dbc.Alert("No data to impute.", color="danger")
+
+    df = cache_get(blanked_key)
+    if df is None:
+        return no_update, dbc.Alert("Cached BLANKED data not found.", color="danger")
+
+    try:
+        imputed_df = imputation(df)
+        imputed_df = downcast_numeric(imputed_df)
+        imputed_key = cache_put(imputed_df, "imputed")
+        return imputed_key, dbc.Alert("Imputation complete.", color="success")
+    except Exception as e:
+        return no_update, dbc.Alert(f"Imputation failed: {e}", color="danger")
+
+
+@app.callback(
+    Output('store-normalized', 'data'),              # "normalized"
+    Output('upload-status-normalization', 'children'),
+    Input('btn-normalized', 'n_clicks'),
+    State('store-imputed', 'data'),                  # "imputed"
+    prevent_initial_call=True
+)
+def apply_normalization(n_clicks, imputed_key):
+    if not imputed_key:
+        return no_update, dbc.Alert("No data to normalize.", color="danger")
+
+    df = cache_get(imputed_key)
+    if df is None:
+        return no_update, dbc.Alert("Cached IMPUTED data not found.", color="danger")
+
+    try:
+        normalized_df = normalization(df)
+        normalized_df = downcast_numeric(normalized_df)
+        normalized_key = cache_put(normalized_df, "normalized")
+        return normalized_key, dbc.Alert("Normalization complete.", color="success")
+    except Exception as e:
+        return no_update, dbc.Alert(f"Normalization failed: {e}", color="danger")
+
+
+@app.callback(
+    Output('store-scaled', 'data'),                  # "scaled"
+    Output('upload-status-scaling', 'children'),
+    Input('btn-scaled', 'n_clicks'),
+    State('store-imputed', 'data'),                  # "imputed" (your pipeline uses imputed -> scaled)
+    prevent_initial_call=True
+)
+def apply_scaling(n_clicks, imputed_key):
+    if not imputed_key:
+        return no_update, dbc.Alert("No data to scale.", color="danger")
+
+    df = cache_get(imputed_key)
+    if df is None:
+        return no_update, dbc.Alert("Cached IMPUTED data not found.", color="danger")
+
+    try:
+        scaled_df = scaling(df)
+        scaled_df = downcast_numeric(scaled_df)
+        scaled_key = cache_put(scaled_df, "scaled")
+        return scaled_key, dbc.Alert("Scaling complete.", color="success")
+    except Exception as e:
+        return no_update, dbc.Alert(f"Scaling failed: {e}", color="danger")
+
+@callback(
+    Output('store-current-step', 'data'),  # e.g. "blanked"
+    Input('data-version-dropdown', 'value'),
+    State('store-peak-areas', 'data'),
+    State('store-blanked', 'data'),
+    State('store-imputed', 'data'),
+    State('store-normalized', 'data'),
+    State('store-scaled', 'data'),
+    prevent_initial_call=True
+)
+def update_current_step(selected_version, raw_key, blanked_key, imputed_key, normalized_key, scaled_key):
+    mapping = {
+        'raw': raw_key,
+        'blanked': blanked_key,
+        'imputed': imputed_key,
+        'normalized': normalized_key,
+        'scaled': scaled_key
+    }
+    key = mapping.get(selected_version)
+    if key:
+        return key
+    elif raw_key:
+        return raw_key
+    else:
+        return no_update
+
+
+@callback(
+    Output("download-dataframe-csv", "data"),
+    Input("download-btn", "n_clicks"),
+    State("store-current-step", "data"),
+    prevent_initial_call=True,
+)
+def download_csv(n_clicks, current_step_key):
+    df = cache_get(current_step_key)
+    if df is None:
+        return no_update
+
+    df = convert_commas_to_floats(df)
+    if not df.empty and df.shape[1] > 0:
+        df.set_index(df.columns[0], inplace=True)
+    else:
+        return no_update 
+
+    return dcc.send_data_frame(df.to_csv, 'data_processed.csv', index=True)
+
+
+@callback(
+    Output('store-compound-names', 'data'),
+    Input("store-current-step", "data"),
+    prevent_initial_call=True
+)
+def extract_compound_names(current_step_key):
+    if not current_step_key:
+        return []
+
+    df = cache_get(current_step_key)
+    if df is None or df.empty or df.shape[1] == 0:
+        return []
+
+    df = df.copy()
+    df.set_index(df.columns[0], inplace=True)
+
+    compound_names = [
+        col.rsplit('_', 1)[-1].rsplit(';', 1)[0]
+        for col in df.columns
+    ]
+    return compound_names
+
+
+
+@callback(
+    Output('compound_dropdown', 'options'),
+    #Output('compound_dropdown', 'value'),
+    Input('compound-search-input', 'value'),
+    Input('browse-compounds-checkbox', 'value'),
+    State('store-compound-names', 'data'),
+    prevent_initial_call=True
+)
+def update_information_dropdown(search_value, is_checked, compound_names):
+    if not is_checked:
+        return []
+
+    if not compound_names:
+        return []
+
+    if search_value:
+        filtered = [
+            name for name in compound_names
+            if search_value.lower() in name.lower()
+        ]
+    else:
+        filtered = []
+        #default_value = filtered[0] if filtered else None
+    # Limit to first 20 to keep UI light
+    filtered = filtered[:20]
+    
+    options = [{"label": name, "value": name} for name in filtered]
+    
+
+    return options
+
+
+
+@app.callback(
+    Output("compound-search-controls", "style"),
+    Input("browse-compounds-checkbox", "value"),
+)
+def toggle_search_controls(is_checked):
+    if is_checked:
+        return {"display": "block"}
+    return {"display": "none"}
+
+
+if __name__ == '__main__':
+    app.run(debug=True)    
+
+
+# In[19]:
 
 
 
