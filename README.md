@@ -23,6 +23,7 @@ The tool enables researchers to:
 - 🧪 **Example datasets** provided (plant metabolomics, lipidomics, human cell metabolomics).  
 
 ---
+<img width="2560" height="1279" alt="image" src="https://github.com/user-attachments/assets/504c255f-df85-44c9-b607-fb338ef6ff7a" />
 
 ## Installation
 
