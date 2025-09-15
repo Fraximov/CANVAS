@@ -1,0 +1,17 @@
+name_file,Sample_ID,Information,replicates,,
+20250225_Lipids_Blank_pos_03,0,Blank,Blank,,
+20250225_Lipids_Blank_pos_04,0,Blank,Blank,,
+20250225_Lipids_LC_pos_01,1,neg Cntrl,negative,,
+20250225_Lipids_LC_pos_02,2,pos Cntrl,positive,,
+20250225_Lipids_LC_pos_03,3,BB1,BB,,biofilm bacteria
+20250225_Lipids_LC_pos_04,4,BB2,BB,,
+20250225_Lipids_LC_pos_05,5,BB3,BB,,
+20250225_Lipids_LC_pos_06,6,PB1,PB,,planctonic bacteria
+20250225_Lipids_LC_pos_07,7,PB2,PB,,
+20250225_Lipids_LC_pos_08,8,PB3,PB,,
+20250225_Lipids_LC_pos_09,9,BO1,BO,,biofilm omv vesicles
+20250225_Lipids_LC_pos_10,10,BO2,BO,,
+20250225_Lipids_LC_pos_11,11,BO3,BO,,
+20250225_Lipids_LC_pos_12,12,PO1,PO,,planctonic omv vesicles
+20250225_Lipids_LC_pos_14,14,PO3,PO,,
+20250225_Lipids_LC_pos_13,13,PO2,PO,,
