@@ -72,6 +72,8 @@ def processing_raw_files(peak_areas,metadata,canopus,structure,pattern):
     ft_an1 = ft.merge(an_final, left_on= "Alignment ID",  how='inner', right_on= "mappingFeatureId", sort=True)
 
     ft_an = ft_an1.merge(an_final_single, left_on= "mappingFeatureId",  how='inner', right_on= "mappingFeatureId", sort=True)
+    canopus_merged_key = cache_put(ft_an, "merged")
+
     an_final = an_final.rename(columns={'Alignment ID':'mappingFeatureId'})
     # Merge 'an_final' with 'sirius' on 'row ID'
     merged_data = pd.merge(an_final, sirius, on='mappingFeatureId', how='outer')
@@ -1201,7 +1203,7 @@ cache.init_app(
         "CACHE_TYPE": "filesystem",   # or "simple" for in-memory
         "CACHE_DIR": "dash_cache",    # required for filesystem
         "threshold": 500,             # max entries
-        "default_timeout": 24*3600,   # 1 day
+        "CACHE_DEFAULT_TIMEOUT": 0,   # 1 day
     }
 )
 
@@ -1616,8 +1618,10 @@ app.layout = dbc.Container([
                      page_size=5),
             ]),
     dbc.Row([
-    dbc.Button("Download CSV", id="download-btn", color="primary", className="mb-2"),
-    dcc.Download(id="download-dataframe-csv"),          
+    dbc.Button("Download CSV", id="download-btn", color="primary", className="mb-4"),
+    dcc.Download(id="download-dataframe-csv"),
+    dbc.Button("Download merged CSV", id="download-merged-btn", color="primary", className="mb-4"),
+    dcc.Download(id="download-dataframe-merged-csv"),      
     ]),
     
 ], fluid=True)
@@ -2323,6 +2327,25 @@ def download_csv(n_clicks, current_step_key):
         return no_update 
 
     return dcc.send_data_frame(df.to_csv, 'data_processed.csv', index=True)
+
+
+@callback(
+    Output("download-dataframe-merged-csv", "data"),
+    Input("download-merged-btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def download_csv(n_clicks):
+    df = cache_get("merged")
+    if df is None:
+        return no_update
+
+    df = convert_commas_to_floats(df)
+    if not df.empty and df.shape[1] > 0:
+        df.set_index(df.columns[0], inplace=True)
+    else:
+        return no_update 
+
+    return dcc.send_data_frame(df.to_csv, 'data_merged_processed.csv', index=True)
 
 
 @callback(
