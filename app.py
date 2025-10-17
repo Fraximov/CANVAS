@@ -2137,7 +2137,7 @@ def populate_class_filter(canopus_data):
 
 
 @callback(
-    Output('class-filter-dropdown', 'value'),
+    Output('class-filter-dropdown', 'value', allow_duplicate=True),
     Input('class-select-all-btn', 'n_clicks'),
     State('class-filter-dropdown', 'options'),
     State('class-filter-dropdown', 'value'),
