@@ -329,8 +329,8 @@ def filter_merged_dataset(cleaned_data, metadata, ft_sirius, attribute_name,
     merged = merged[merged['average'] > cutoff_value]
 
     # Apply Sirius and NPC filters
-    if filter_class:
-        merged = merged[merged['NPC#class'].isin(filter_class)]
+    if filter_class is not None:
+        merged = merged[merged['NPC#class'].fillna('Unclassified').isin(filter_class)]
     if filter_prob:
         merged = merged[merged['NPC#pathway Probability'] > filter_prob]
         merged = merged[merged['NPC#superclass Probability'] > filter_prob]
@@ -402,8 +402,8 @@ def process_and_plot_barplot_NPC(cleaned_data, metadata, ft_sirius, attribute_na
             cutoff_value = merged['average'].quantile(1 - threshold)
             merged = merged[merged['average'] > cutoff_value]
 
-            if filter_class:
-                merged = merged[merged[group_col].isin(filter_class)]
+            if filter_class is not None:
+                merged = merged[merged['NPC#class'].fillna('Unclassified').isin(filter_class)]
             if filter_prob:
                 merged = merged[merged['NPC#pathway Probability'] > filter_prob]
                 merged = merged[merged['NPC#superclass Probability'] > filter_prob]
@@ -533,8 +533,8 @@ def process_and_plot_lineplot_NPC(
             merged = merged[merged['average'] > cutoff_value]
         
             # Apply filters
-            if filter_class:
-                merged = merged[merged[group_col].isin(filter_class)]
+            if filter_class is not None:
+                merged = merged[merged['NPC#class'].fillna('Unclassified').isin(filter_class)]
             if filter_prob:
                 merged = merged[merged['NPC#pathway Probability'] > filter_prob]
                 merged = merged[merged['NPC#superclass Probability'] > filter_prob]
@@ -689,8 +689,8 @@ def process_and_plot_intensity_NPC(cleaned_data, metadata, ft_sirius, attribute_
         cutoff_value = merged['average'].quantile(1 - threshold)
         merged = merged[merged['average'] > cutoff_value]
 
-        if filter_class:
-            merged = merged[merged['NPC#pathway'].isin(filter_class)]
+        if filter_class is not None:
+            merged = merged[merged['NPC#class'].fillna('Unclassified').isin(filter_class)]
         if filter_prob:
             merged = merged[merged['NPC#pathway Probability'] > filter_prob]
             merged = merged[merged['NPC#superclass Probability'] > filter_prob]
@@ -699,6 +699,14 @@ def process_and_plot_intensity_NPC(cleaned_data, metadata, ft_sirius, attribute_
             merged = merged[merged['SiriusScoreNormalized'] > filter_sirius]
 
         merged = merged.fillna('Unclassified')
+
+        if merged.empty:
+            fig.add_trace(
+                build_empty_sunburst_trace("No data after applying the current filters"),
+                row=row_idx,
+                col=col_idx
+            )
+            continue
 
         sunburst = px.sunburst(
             merged,
@@ -781,8 +789,8 @@ def process_and_plot_NPC_count(cleaned_data, metadata, ft_sirius, attribute_name
 
         # Merge with ft_sirius on 'compound_name'
         merged_sirius_data_T = pd.merge(ft_sirius, averaged_df, on='compound_name')
-        if filter_class:
-          merged_sirius_data_T = merged_sirius_data_T[merged_sirius_data_T['NPC#pathway'].isin(filter_class)]
+        if filter_class is not None:
+          merged_sirius_data_T = merged_sirius_data_T[merged_sirius_data_T['NPC#class'].fillna('Unclassified').isin(filter_class)]
         if filter_prob:
           merged_sirius_data_T = merged_sirius_data_T[merged_sirius_data_T['NPC#pathway Probability'] > filter_prob]
           merged_sirius_data_T = merged_sirius_data_T[merged_sirius_data_T['NPC#superclass Probability'] > filter_prob]
@@ -799,8 +807,16 @@ def process_and_plot_NPC_count(cleaned_data, metadata, ft_sirius, attribute_name
          
         cutoff_value = merged_sirius_data_T_copy['average'].quantile(1 - threshold)
         merged_sirius_data_T_copy = merged_sirius_data_T_copy[merged_sirius_data_T_copy['average'] > cutoff_value]
-        
-         # Create a sunburst plot for the current sample location
+
+        if merged_sirius_data_T_copy.empty:
+            fig.add_trace(
+                build_empty_sunburst_trace("No data after applying the current filters"),
+                row=1,
+                col=i + 1
+            )
+            continue
+
+        # Create a sunburst plot for the current sample location
         sunburst = px.sunburst(
             merged_sirius_data_T_copy,
             path=['NPC#pathway', 'NPC#superclass', 'NPC#class'],
@@ -898,8 +914,8 @@ def process_and_plot_pca(
     cutoff = merged['average'].quantile(1 - threshold)
     merged = merged[merged['average'] > cutoff]
 
-    if filter_class:
-        merged = merged[merged['NPC#pathway'].isin(filter_class)]
+    if filter_class is not None:
+        merged = merged[merged['NPC#class'].fillna('Unclassified').isin(filter_class)]
     if filter_prob:
         merged = merged[
             (merged['NPC#pathway Probability'] > filter_prob) &
@@ -1064,10 +1080,18 @@ def process_and_plot_rf(cleaned_data, metadata, ft_sirius,
     # --- Apply Sirius/Canopus filters ---
     ft = ft_sirius.copy()
 
-    #if filter_class:
-    #    ft = ft[ft['NPC#superclass'].isin(filter_class) |
-     #           ft['NPC#class'].isin(filter_class) |
-     #           ft['NPC#pathway'].isin(filter_class)]
+    # Ensure the compound annotations carry a dedicated 'compound_name' column
+    if 'compound_name' not in ft.columns:
+        # Many upstream steps keep compound names on the index; bring them back as a column
+        ft = ft.reset_index()
+        if 'compound_name' not in ft.columns:
+            ft = ft.rename(columns={'index': 'compound_name'})
+
+    if 'compound_name' not in ft.columns:
+        return px.scatter(title="Compound annotations missing 'compound_name'")
+
+    if filter_class is not None:
+        ft = ft[ft['NPC#class'].fillna('Unclassified').isin(filter_class)]
     if filter_prob:
         ft = ft[(ft['NPC#pathway Probability'] > filter_prob) &
                 (ft['NPC#superclass Probability'] > filter_prob) &
@@ -1081,6 +1105,13 @@ def process_and_plot_rf(cleaned_data, metadata, ft_sirius,
     # --- Build feature matrix ---
     # Assume compound intensities are columns "X..." and identified in ft_sirius["compound_name"]
     feature_cols = [c for c in df.columns if c.startswith("X")]
+
+    if filter_class is not None:
+        allowed_features = set(ft['compound_name'])
+        feature_cols = [c for c in feature_cols if c in allowed_features]
+
+    if not feature_cols:
+        return px.scatter(title="No features match the selected classes")
     X = df[feature_cols]
     y = df[group_col]
 
@@ -1154,6 +1185,83 @@ def generate_node_level_color_map(ft_sirius):
 
     color_map = dict(zip(all_labels, palette))
     return color_map
+
+
+def build_empty_sunburst_trace(message="No data available"):
+    """Return a single-node sunburst trace to occupy subplot slots when filters remove all data."""
+
+    return go.Sunburst(
+        labels=['No data'],
+        parents=[''],
+        values=[1],
+        hovertemplate=f"{message}<extra></extra>",
+        marker=dict(colors=['#E5ECF6'])
+    )
+
+
+def build_empty_figure(message="No data available for the current filters"):
+    """Return a blank figure with a centered status message."""
+
+    fig = go.Figure()
+    fig.update_layout(
+        template='plotly_white',
+        title=message
+    )
+    fig.add_annotation(
+        text=message,
+        x=0.5,
+        y=0.5,
+        xref='paper',
+        yref='paper',
+        showarrow=False,
+        font=dict(color='#6c757d')
+    )
+    return fig
+
+
+def build_class_distribution_figure(class_series, selected_classes):
+    """Return a bar plot summarising available NPC classes and highlighting selections."""
+
+    if class_series is None or class_series.empty:
+        return go.Figure(layout=go.Layout(title="Class distribution"))
+
+    counts = (
+        class_series.fillna('Unclassified')
+        .value_counts()
+        .rename_axis('Class')
+        .reset_index(name='Count')
+        .sort_values('Count', ascending=True)
+    )
+
+    if counts.empty:
+        return go.Figure(layout=go.Layout(title="Class distribution"))
+
+    selected_set = set(selected_classes or [])
+    counts['Selection'] = np.where(
+        counts['Class'].isin(selected_set),
+        'Selected',
+        'Available'
+    )
+
+    fig = px.bar(
+        counts,
+        x='Count',
+        y='Class',
+        orientation='h',
+        color='Selection',
+        color_discrete_map={'Selected': '#636EFA', 'Available': '#B6C2FF'},
+        category_orders={'Class': counts['Class'].tolist()}
+    )
+
+    fig.update_layout(
+        template='plotly_white',
+        title='Class distribution',
+        margin=dict(l=10, r=10, t=40, b=10),
+        legend_title_text=''  # cosmetic
+    )
+    fig.update_yaxes(title=None)
+    fig.update_xaxes(title='Number of compounds')
+    return fig
 
 
 
@@ -1378,7 +1486,7 @@ compound_selection_card = dbc.Card(
                 [
                     dbc.Label("Search compound name"),
                     dcc.Input(
-                        id='compound-search-input', 
+                        id='compound-search-input',
                         type='text',
                         placeholder='Type part of compound name...'
                     ),
@@ -1395,7 +1503,31 @@ compound_selection_card = dbc.Card(
             )
         ])
     )
- 
+
+
+class_selection_card = dbc.Card(
+    dbc.CardBody([
+        html.H5("Class Selection", className="card-title"),
+        html.P(
+            "Inspect the distribution of NPC classes and filter plots to selected classes.",
+            className="text-muted"
+        ),
+        dcc.Graph(
+            id='class-distribution-graph',
+            config={'displayModeBar': False},
+            style={'height': '320px'}
+        ),
+        dcc.Dropdown(
+            id='class-filter-dropdown',
+            options=[],
+            value=None,
+            multi=True,
+            placeholder='Select classes to include'
+        ),
+        dbc.Button("Select All", id='class-select-all-btn', color='primary', className='mt-2')
+    ])
+)
+
 
 
 
@@ -1569,12 +1701,17 @@ app.layout = dbc.Container([
     
 
     dbc.Row([
-        dbc.Col([sliders_card,
-                 toast_card,
-                compound_selection_card]),
-        dbc.Col([controls_card,
-               selection_card]),
-        
+        dbc.Col([
+            sliders_card,
+            toast_card,
+            compound_selection_card
+        ]),
+        dbc.Col([
+            controls_card,
+            selection_card,
+            class_selection_card
+        ]),
+
     ], className="mb-4 4 mt-4"),  # g-3 adds small gap between cols
     
  
@@ -1624,7 +1761,7 @@ app.layout = dbc.Container([
     dcc.Download(id="download-dataframe-merged-csv"),      
     ]),
     
-], fluid=True)
+], fluid=True, style={"fontSize": "16px"})
 
 
 # In[18]:
@@ -1644,6 +1781,7 @@ app.layout = dbc.Container([
     Input('sirius-slider', 'value'),
     Input('radio-mode-store', 'data'),
     Input('checkbox-levels', 'value'),
+    Input('class-filter-dropdown', 'value'),
     Input("store-current-step", "data"),    # <-- key, not big JSON
     Input("compound_dropdown", "value"),
     State('store-metadata', 'data'),
@@ -1651,7 +1789,7 @@ app.layout = dbc.Container([
 )
 def update_sunburst(tab_choice, selected_param, second_param, selected_locations,
                     selected_samples2, threshold, filter_prob, filter_sirius,
-                    radio_choice, checkbox_levels, current_step_key, selected_compounds,
+                    radio_choice, checkbox_levels, selected_classes, current_step_key, selected_compounds,
                     metadata_dict, canopus_dict):
 
     if not selected_locations or not metadata_dict or not canopus_dict or not current_step_key:
@@ -1672,6 +1810,11 @@ def update_sunburst(tab_choice, selected_param, second_param, selected_locations
             selected_compounds = [selected_compounds]
     else:
         selected_compounds = None
+
+    if selected_classes is not None and not isinstance(selected_classes, list):
+        selected_classes = [selected_classes]
+
+    no_classes_selected = isinstance(selected_classes, list) and len(selected_classes) == 0
 
     metadata = pd.DataFrame(metadata_dict)
     metadata.set_index(metadata.columns[0], inplace=True)
@@ -1697,19 +1840,31 @@ def update_sunburst(tab_choice, selected_param, second_param, selected_locations
         attribute_name=selected_param,
         sample_locations=selected_locations,
         threshold=threshold,
-        filter_class=None,
+        filter_class=selected_classes,
         filter_prob=filter_prob,
         filter_sirius=filter_sirius,
-        selected_compounds=selected_compounds 
+        selected_compounds=selected_compounds
     )
 
-    n_features = filtered_df.shape[0] + 1
-    n_samples = filtered_df.shape[1] 
-    n_pathways = filtered_df['NPC#pathway'].nunique()
-    n_superclasses = filtered_df['NPC#superclass'].nunique()
-    n_classes = filtered_df['NPC#class'].nunique()
+    if filtered_df is None:
+        filtered_df = pd.DataFrame()
 
-    filtered_df.index.name = 'filename'
+    required_columns = {'NPC#pathway', 'NPC#superclass', 'NPC#class'}
+    has_required_columns = required_columns.issubset(filtered_df.columns)
+
+    if filtered_df.empty or not has_required_columns:
+        n_features = 0
+        n_samples = 0
+        n_pathways = 0
+        n_superclasses = 0
+        n_classes = 0
+    else:
+        n_features = filtered_df.shape[0] + 1
+        n_samples = filtered_df.shape[1]
+        n_pathways = filtered_df['NPC#pathway'].nunique()
+        n_superclasses = filtered_df['NPC#superclass'].nunique()
+        n_classes = filtered_df['NPC#class'].nunique()
+        filtered_df.index.name = 'filename'
     
     summary = dbc.Row([
         dbc.Col([
@@ -1722,6 +1877,12 @@ def update_sunburst(tab_choice, selected_param, second_param, selected_locations
             html.P(f"Retained pathways: {n_pathways}", className="mb-1"),
         ], width=7),
     ])
+
+    if no_classes_selected:
+        return summary, True, build_empty_figure("Select at least one class to display plots")
+
+    if filtered_df.empty or not has_required_columns:
+        return summary, True, build_empty_figure()
 
     if not isinstance(selected_locations, list):
         selected_locations = [selected_locations]
@@ -1744,7 +1905,7 @@ def update_sunburst(tab_choice, selected_param, second_param, selected_locations
                 sample_locations= selected_locations,
                 threshold=threshold,
                 node_color_map=node_color_map,
-                filter_class=None,  # You can later wire this up from another input
+                filter_class=selected_classes,
                 filter_prob=filter_prob,
                 filter_sirius=filter_sirius,
                 selected_compounds = selected_compounds,
@@ -1759,7 +1920,7 @@ def update_sunburst(tab_choice, selected_param, second_param, selected_locations
                 sample_locations=selected_locations,
                 threshold=threshold,
                 node_color_map=node_color_map,
-                filter_class=None,  # You can later wire this up from another input
+                filter_class=selected_classes,
                 filter_prob=filter_prob,
                 filter_sirius=filter_sirius,
                 selected_compounds = selected_compounds,
@@ -1777,7 +1938,7 @@ def update_sunburst(tab_choice, selected_param, second_param, selected_locations
             sample_locations=selected_locations,
             threshold=threshold,
             node_color_map=node_color_map,
-            filter_class=None,
+            filter_class=selected_classes,
             filter_prob=filter_prob,
             filter_sirius=filter_sirius,
             group_cols = checkbox_levels,
@@ -1793,11 +1954,11 @@ def update_sunburst(tab_choice, selected_param, second_param, selected_locations
             attribute_name=selected_param,
             sample_locations=selected_locations,
             threshold=threshold,
-            filter_class=None,
+            filter_class=selected_classes,
             filter_prob=filter_prob,
-            filter_sirius=filter_sirius, 
+            filter_sirius=filter_sirius,
             selected_compounds = selected_compounds,
-        )   
+        )
         
     elif tab_choice == 'line_plot':
         fig = process_and_plot_lineplot_NPC(
@@ -1808,12 +1969,12 @@ def update_sunburst(tab_choice, selected_param, second_param, selected_locations
             sample_locations=selected_locations,
             threshold=threshold,
             node_color_map=node_color_map,
-            filter_class=None,
+            filter_class=selected_classes,
             filter_prob=filter_prob,
             filter_sirius=filter_sirius,
             group_cols = checkbox_levels,
             type_plot = radio_choice,
-            selected_compounds = selected_compounds,               
+            selected_compounds = selected_compounds,
         )
     elif tab_choice == 'RT_mz':
         fig = scatter_rt_mz(
@@ -1824,7 +1985,7 @@ def update_sunburst(tab_choice, selected_param, second_param, selected_locations
             sample_locations=selected_locations,
             threshold=threshold,
             node_color_map=node_color_map,
-            filter_class=None,
+            filter_class=selected_classes,
             filter_prob=filter_prob,
             filter_sirius=filter_sirius,
             group_cols = checkbox_levels,
@@ -1841,7 +2002,7 @@ def update_sunburst(tab_choice, selected_param, second_param, selected_locations
             group_col=selected_param,
             sample_locations=selected_locations,
             threshold=threshold,
-            filter_class=checkbox_levels,
+            filter_class=selected_classes,
             filter_prob=filter_prob,
             filter_sirius=filter_sirius,
             type_plot=radio_choice
@@ -1898,8 +2059,8 @@ def toggle_radio_style(n_int, n_count):
 )
 def update_information_dropdown(selected_param, n_clicks, metadata_dic, current_selection):
     if metadata_dic is None:
-        return [], None 
-    
+        return [], None
+
     metadata = pd.DataFrame(metadata_dic)
 
     if selected_param is None or selected_param not in metadata.columns:
@@ -1967,6 +2128,68 @@ def update_information_dropdown(selected_param, n_clicks, metadata_dic, current_
 
 
 @callback(
+    Output('class-filter-dropdown', 'options'),
+    Output('class-filter-dropdown', 'value'),
+    Input('store-canopus', 'data'),
+    prevent_initial_call=True
+)
+def populate_class_filter(canopus_data):
+    if not canopus_data:
+        return [], []
+
+    df = pd.DataFrame(canopus_data)
+    if 'NPC#class' not in df.columns:
+        return [], []
+
+    classes = sorted(df['NPC#class'].fillna('Unclassified').unique())
+    options = [{'label': cls, 'value': cls} for cls in classes]
+    return options, classes
+
+
+@callback(
+    Output('class-filter-dropdown', 'value', allow_duplicate=True),
+    Input('class-select-all-btn', 'n_clicks'),
+    State('class-filter-dropdown', 'options'),
+    State('class-filter-dropdown', 'value'),
+    prevent_initial_call=True
+)
+def toggle_class_selection(n_clicks, options, current_value):
+    if not n_clicks:
+        raise PreventUpdate
+
+    if not options:
+        return no_update
+
+    all_values = [opt['value'] for opt in options]
+    current_set = set(current_value or [])
+
+    if current_set == set(all_values):
+        return []
+
+    return all_values
+
+
+@callback(
+    Output('class-distribution-graph', 'figure'),
+    Input('store-canopus', 'data'),
+    Input('class-filter-dropdown', 'value')
+)
+def update_class_distribution(canopus_data, selected_classes):
+    if not canopus_data:
+        return go.Figure()
+
+    df = pd.DataFrame(canopus_data)
+    if 'NPC#class' not in df.columns:
+        return go.Figure()
+
+    class_series = df['NPC#class']
+    if selected_classes is None:
+        selected_classes = class_series.fillna('Unclassified').unique().tolist()
+
+    return build_class_distribution_figure(class_series, selected_classes)
+
+
+@callback(
     Output('file-status-drop', 'children'),
     Input('upload-peak-areas', 'filename'),
     Input('upload-metadata', 'filename'),
@@ -2031,22 +2254,20 @@ def show_file_status(peak_data, meta_data, canopus_data):
     Output("upload-panel", "is_open"),
     Input("toggle-upload-panel", "n_clicks"),
     State("upload-panel", "is_open"),
-    prevent_initial_call=True
 )
+def toggle_upload_panel(n_clicks, is_open):
+    if not n_clicks:
+        raise PreventUpdate
 
+    return not bool(is_open)
 
-def toggle_collapse(n_clicks, is_open):
-    return not is_open
 
 @callback(
     Output("raw-settings-collapse", "is_open"),
     Input("is-raw-checkbox", "value"),
-    State("raw-settings-collapse", "is_open"),
 )
-def toggle_collapse(raw_toggle_checked, is_open):
-    if raw_toggle_checked:
-        return True
-    return False
+def toggle_raw_settings(raw_toggle_checked):
+    return bool(raw_toggle_checked)
 
 from dash import callback, Output, Input, State, ctx, no_update
 import pandas as pd
