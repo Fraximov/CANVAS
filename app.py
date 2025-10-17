@@ -1080,6 +1080,16 @@ def process_and_plot_rf(cleaned_data, metadata, ft_sirius,
     # --- Apply Sirius/Canopus filters ---
     ft = ft_sirius.copy()
 
+    # Ensure the compound annotations carry a dedicated 'compound_name' column
+    if 'compound_name' not in ft.columns:
+        # Many upstream steps keep compound names on the index; bring them back as a column
+        ft = ft.reset_index()
+        if 'compound_name' not in ft.columns:
+            ft = ft.rename(columns={'index': 'compound_name'})
+
+    if 'compound_name' not in ft.columns:
+        return px.scatter(title="Compound annotations missing 'compound_name'")
+
     if filter_class is not None:
         ft = ft[ft['NPC#class'].fillna('Unclassified').isin(filter_class)]
     if filter_prob:
@@ -1094,11 +1104,11 @@ def process_and_plot_rf(cleaned_data, metadata, ft_sirius,
 
     # --- Build feature matrix ---
     # Assume compound intensities are columns "X..." and identified in ft_sirius["compound_name"]
-    allowed_features = set(ft['compound_name'])
-    feature_cols = [
-        c for c in df.columns if c.startswith("X") and
-        (filter_class is None or c in allowed_features)
-    ]
+    feature_cols = [c for c in df.columns if c.startswith("X")]
+
+    if filter_class is not None:
+        allowed_features = set(ft['compound_name'])
+        feature_cols = [c for c in feature_cols if c in allowed_features]
 
     if not feature_cols:
         return px.scatter(title="No features match the selected classes")
