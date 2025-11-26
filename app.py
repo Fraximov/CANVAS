@@ -1507,24 +1507,48 @@ compound_selection_card = dbc.Card(
 
 class_selection_card = dbc.Card(
     dbc.CardBody([
-        html.H5("Class Selection", className="card-title"),
-        html.P(
-            "Inspect the distribution of NPC classes and filter plots to selected classes.",
-            className="text-muted"
+        dbc.Row(
+            [
+                dbc.Col(
+                    html.H5("Class Selection", className="card-title mb-0"),
+                    width="auto",
+                ),
+                dbc.Col(
+                    dbc.Checkbox(
+                        id="class-selection-toggle",
+                        label="Show panel",
+                        value=True,
+                    ),
+                    width="auto",
+                    className="ms-auto",
+                ),
+            ],
+            align="center",
+            className="mb-2",
         ),
-        dcc.Graph(
-            id='class-distribution-graph',
-            config={'displayModeBar': False},
-            style={'height': '320px'}
+        dbc.Collapse(
+            [
+                html.P(
+                    "Inspect the distribution of NPC classes and filter plots to selected classes.",
+                    className="text-muted"
+                ),
+                dcc.Graph(
+                    id='class-distribution-graph',
+                    config={'displayModeBar': False},
+                    style={'height': '320px'}
+                ),
+                dcc.Dropdown(
+                    id='class-filter-dropdown',
+                    options=[],
+                    value=None,
+                    multi=True,
+                    placeholder='Select classes to include'
+                ),
+                dbc.Button("Select All", id='class-select-all-btn', color='primary', className='mt-2')
+            ],
+            id="class-selection-collapse",
+            is_open=True,
         ),
-        dcc.Dropdown(
-            id='class-filter-dropdown',
-            options=[],
-            value=None,
-            multi=True,
-            placeholder='Select classes to include'
-        ),
-        dbc.Button("Select All", id='class-select-all-btn', color='primary', className='mt-2')
     ])
 )
 
@@ -2144,6 +2168,14 @@ def populate_class_filter(canopus_data):
     classes = sorted(df['NPC#class'].fillna('Unclassified').unique())
     options = [{'label': cls, 'value': cls} for cls in classes]
     return options, classes
+
+
+@callback(
+    Output("class-selection-collapse", "is_open"),
+    Input("class-selection-toggle", "value"),
+)
+def toggle_class_selection_panel(selected_values):
+    return bool(selected_values)
 
 
 @callback(
