@@ -1553,6 +1553,84 @@ class_selection_card = dbc.Card(
 )
 
 
+compound_selection_card = dbc.Card(
+        dbc.CardBody([
+            dbc.Checkbox(
+                id='browse-compounds-checkbox',
+                label="Browse by specific items"
+            ),
+            html.Div(  # this div wraps the searchable UI and starts hidden
+                [
+                    dbc.Label("Search compound name"),
+                    dcc.Input(
+                        id='compound-search-input',
+                        type='text',
+                        placeholder='Type part of compound name...'
+                    ),
+                    dcc.Dropdown(
+                        id='compound_dropdown',
+                        options=[],
+                        value=[],
+                        clearable=False,
+                        multi=True,
+                    )
+                ],
+                id="compound-search-controls",
+                style={"display": "none"}  # hidden by default
+            )
+        ])
+    )
+
+
+class_selection_card = dbc.Card(
+    dbc.CardBody([
+        dbc.Row(
+            [
+                dbc.Col(
+                    html.H5("Class Selection", className="card-title mb-0"),
+                    width="auto",
+                ),
+                dbc.Col(
+                    dbc.Checkbox(
+                        id="class-selection-toggle",
+                        label="Show panel",
+                        value=True,
+                        switch=True,
+                    ),
+                    width="auto",
+                    className="ms-auto",
+                ),
+            ],
+            align="center",
+            className="mb-2",
+        ),
+        dbc.Collapse(
+            [
+                html.P(
+                    "Inspect the distribution of NPC classes and filter plots to selected classes.",
+                    className="text-muted"
+                ),
+                dcc.Graph(
+                    id='class-distribution-graph',
+                    config={'displayModeBar': False},
+                    style={'height': '320px'}
+                ),
+                dcc.Dropdown(
+                    id='class-filter-dropdown',
+                    options=[],
+                    value=None,
+                    multi=True,
+                    placeholder='Select classes to include'
+                ),
+                dbc.Button("Select All", id='class-select-all-btn', color='primary', className='mt-2')
+            ],
+            id="class-selection-collapse",
+            is_open=True,
+        ),
+    ])
+)
+
+
 
 
 app.layout = dbc.Container([
@@ -2176,6 +2254,84 @@ def populate_class_filter(canopus_data):
 )
 def toggle_class_selection_panel(selected_values):
     return bool(selected_values)
+
+
+@callback(
+    Output('class-filter-dropdown', 'value', allow_duplicate=True),
+    Input('class-select-all-btn', 'n_clicks'),
+    State('class-filter-dropdown', 'options'),
+    State('class-filter-dropdown', 'value'),
+    prevent_initial_call=True
+)
+def toggle_class_selection(n_clicks, options, current_value):
+    if not n_clicks:
+        raise PreventUpdate
+
+    if not options:
+        return no_update
+
+    all_values = [opt['value'] for opt in options]
+    current_set = set(current_value or [])
+
+    if current_set == set(all_values):
+        return []
+
+    return all_values
+
+
+@callback(
+    Output('class-distribution-graph', 'figure'),
+    Input('store-canopus', 'data'),
+    Input('class-filter-dropdown', 'value')
+)
+def update_class_distribution(canopus_data, selected_classes):
+    if not canopus_data:
+        return go.Figure()
+
+    df = pd.DataFrame(canopus_data)
+    if 'NPC#class' not in df.columns:
+        return go.Figure()
+
+    class_series = df['NPC#class']
+    if selected_classes is None:
+        selected_classes = class_series.fillna('Unclassified').unique().tolist()
+
+    return build_class_distribution_figure(class_series, selected_classes)
+
+
+@callback(
+    Output('file-status-drop', 'children'),
+    Input('upload-peak-areas', 'filename'),
+    Input('upload-metadata', 'filename'),
+    Input('upload-canopus', 'filename'),
+    return options, current_selection
+
+
+@callback(
+    Output('class-filter-dropdown', 'options'),
+    Output('class-filter-dropdown', 'value'),
+    Input('store-canopus', 'data'),
+    prevent_initial_call=True
+)
+def populate_class_filter(canopus_data):
+    if not canopus_data:
+        return [], []
+
+    df = pd.DataFrame(canopus_data)
+    if 'NPC#class' not in df.columns:
+        return [], []
+
+    classes = sorted(df['NPC#class'].fillna('Unclassified').unique())
+    options = [{'label': cls, 'value': cls} for cls in classes]
+    return options, classes
+
+
+@callback(
+    Output("class-selection-collapse", "is_open"),
+    Input("class-selection-toggle", "value"),
+)
+def toggle_class_selection_panel(is_checked):
+    return bool(is_checked)
 
 
 @callback(
