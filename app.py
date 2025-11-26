@@ -1728,12 +1728,12 @@ app.layout = dbc.Container([
         dbc.Col([
             sliders_card,
             toast_card,
-            compound_selection_card
+            compound_selection_card,
+            class_selection_card
         ]),
         dbc.Col([
             controls_card,
             selection_card,
-            class_selection_card
         ]),
 
     ], className="mb-4 4 mt-4"),  # g-3 adds small gap between cols
