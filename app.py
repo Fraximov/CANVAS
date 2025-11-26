@@ -724,7 +724,8 @@ def process_and_plot_intensity_NPC(cleaned_data, metadata, ft_sirius, attribute_
     fig.update_layout(
         title_text="Sunburst Plots with Distinct Colors Per Node",
         showlegend=False,
-        height=400 * n_rows  # adjust figure height dynamically
+        height=max(700, 450 * n_rows),  # scale height to fill available space
+        margin=dict(t=40, l=20, r=20, b=20)
     )
 
     return fig
@@ -834,7 +835,9 @@ def process_and_plot_NPC_count(cleaned_data, metadata, ft_sirius, attribute_name
     # Update layout
     fig.update_layout(
         title_text="Sunburst Plots with Distinct Colors Per Node",
-        showlegend=False
+        showlegend=False,
+        height=700,
+        margin=dict(t=40, l=20, r=20, b=20)
     )
 
     return fig
@@ -1751,15 +1754,19 @@ app.layout = dbc.Container([
     ]),
 
     dbc.Spinner(
-        dcc.Graph(id='final-graph',
-                 config={
-        "toImageButtonOptions": {
-            "format": "svg",  # one of png, svg, jpeg, webp
-            "filename": "my_plot",
-            "height": 600,
-            "width": 800,
-            "scale": 1
-        }}),
+        dcc.Graph(
+            id='final-graph',
+            config={
+                "toImageButtonOptions": {
+                    "format": "svg",  # one of png, svg, jpeg, webp
+                    "filename": "my_plot",
+                    "height": 600,
+                    "width": 800,
+                    "scale": 1
+                }
+            },
+            style={"height": "85vh", "width": "100%"}
+        ),
         color="primary",  # 'primary', 'secondary', 'success', etc.
         type="border",    # or 'grow'
         fullscreen=False,  # You can set to True for full-page overlay
