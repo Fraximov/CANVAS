@@ -1514,10 +1514,11 @@ class_selection_card = dbc.Card(
                     width="auto",
                 ),
                 dbc.Col(
-                    dbc.Checklist(
+                    dbc.Checkbox(
                         id="class-selection-toggle",
-                        options=[{"label": "Show panel", "value": "show"}],
-                        value=["show"],
+                        label="Show panel",
+                        value=True,
+                        switch=True,
                     ),
                     width="auto",
                     className="ms-auto",
@@ -2174,8 +2175,8 @@ def populate_class_filter(canopus_data):
     Output("class-selection-collapse", "is_open"),
     Input("class-selection-toggle", "value"),
 )
-def toggle_class_selection_panel(selected_values):
-    return bool(selected_values)
+def toggle_class_selection_panel(is_checked):
+    return bool(is_checked)
 
 
 @callback(
