@@ -724,7 +724,8 @@ def process_and_plot_intensity_NPC(cleaned_data, metadata, ft_sirius, attribute_
     fig.update_layout(
         title_text="Sunburst Plots with Distinct Colors Per Node",
         showlegend=False,
-        height=400 * n_rows  # adjust figure height dynamically
+        height=max(700, 450 * n_rows),  # scale height to fill available space
+        margin=dict(t=40, l=20, r=20, b=20)
     )
 
     return fig
@@ -834,7 +835,9 @@ def process_and_plot_NPC_count(cleaned_data, metadata, ft_sirius, attribute_name
     # Update layout
     fig.update_layout(
         title_text="Sunburst Plots with Distinct Colors Per Node",
-        showlegend=False
+        showlegend=False,
+        height=700,
+        margin=dict(t=40, l=20, r=20, b=20)
     )
 
     return fig
@@ -1507,24 +1510,48 @@ compound_selection_card = dbc.Card(
 
 class_selection_card = dbc.Card(
     dbc.CardBody([
-        html.H5("Class Selection", className="card-title"),
-        html.P(
-            "Inspect the distribution of NPC classes and filter plots to selected classes.",
-            className="text-muted"
+        dbc.Row(
+            [
+                dbc.Col(
+                    html.H5("Class Selection", className="card-title mb-0"),
+                    width="auto",
+                ),
+                dbc.Col(
+                    dbc.Checkbox(
+                        id="class-selection-toggle",
+                        label="Show panel",
+                        value=False,
+                    ),
+                    width="auto",
+                    className="ms-auto",
+                ),
+            ],
+            align="center",
+            className="mb-2",
         ),
-        dcc.Graph(
-            id='class-distribution-graph',
-            config={'displayModeBar': False},
-            style={'height': '320px'}
+        dbc.Collapse(
+            [
+                html.P(
+                    "Inspect the distribution of NPC classes and filter plots to selected classes.",
+                    className="text-muted"
+                ),
+                dcc.Graph(
+                    id='class-distribution-graph',
+                    config={'displayModeBar': False},
+                    style={'height': '320px'}
+                ),
+                dcc.Dropdown(
+                    id='class-filter-dropdown',
+                    options=[],
+                    value=None,
+                    multi=True,
+                    placeholder='Select classes to include'
+                ),
+                dbc.Button("Select All", id='class-select-all-btn', color='primary', className='mt-2')
+            ],
+            id="class-selection-collapse",
+            is_open=False,
         ),
-        dcc.Dropdown(
-            id='class-filter-dropdown',
-            options=[],
-            value=None,
-            multi=True,
-            placeholder='Select classes to include'
-        ),
-        dbc.Button("Select All", id='class-select-all-btn', color='primary', className='mt-2')
     ])
 )
 
@@ -1704,12 +1731,12 @@ app.layout = dbc.Container([
         dbc.Col([
             sliders_card,
             toast_card,
-            compound_selection_card
+            compound_selection_card,
+            class_selection_card
         ]),
         dbc.Col([
             controls_card,
             selection_card,
-            class_selection_card
         ]),
 
     ], className="mb-4 4 mt-4"),  # g-3 adds small gap between cols
@@ -1727,15 +1754,19 @@ app.layout = dbc.Container([
     ]),
 
     dbc.Spinner(
-        dcc.Graph(id='final-graph',
-                 config={
-        "toImageButtonOptions": {
-            "format": "svg",  # one of png, svg, jpeg, webp
-            "filename": "my_plot",
-            "height": 600,
-            "width": 800,
-            "scale": 1
-        }}),
+        dcc.Graph(
+            id='final-graph',
+            config={
+                "toImageButtonOptions": {
+                    "format": "svg",  # one of png, svg, jpeg, webp
+                    "filename": "my_plot",
+                    "height": 600,
+                    "width": 800,
+                    "scale": 1
+                }
+            },
+            style={"height": "85vh", "width": "100%"}
+        ),
         color="primary",  # 'primary', 'secondary', 'success', etc.
         type="border",    # or 'grow'
         fullscreen=False,  # You can set to True for full-page overlay
@@ -2144,6 +2175,14 @@ def populate_class_filter(canopus_data):
     classes = sorted(df['NPC#class'].fillna('Unclassified').unique())
     options = [{'label': cls, 'value': cls} for cls in classes]
     return options, classes
+
+
+@callback(
+    Output("class-selection-collapse", "is_open"),
+    Input("class-selection-toggle", "value"),
+)
+def toggle_class_selection_panel(selected_values):
+    return bool(selected_values)
 
 
 @callback(
