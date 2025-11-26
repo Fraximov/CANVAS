@@ -1518,6 +1518,7 @@ class_selection_card = dbc.Card(
                         id="class-selection-toggle",
                         label="Show panel",
                         value=True,
+                        switch=True,
                     ),
                     width="auto",
                     className="ms-auto",
