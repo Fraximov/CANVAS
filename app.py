@@ -111,7 +111,21 @@ def processing_raw_files(peak_areas,metadata,canopus,structure,pattern):
     
     # Selecting only the columns with names containing 'mzXML' or 'mzML'
     new_ft = new_ft.loc[:, new_ft.columns.str.contains(f'^{pattern}')]
-    new_ft_sirius_NPC = ft_an.loc[:, ft_an.columns.str.contains('^NPC|^SiriusScoreNormalized')]
+
+    columns_to_include = [
+        'ConfidenceScoreExact', 'ConfidenceScoreApproximate', 'CSI:FingerIDScore', 'ZodiacScore',
+        'molecularFormula_x', 'adduct_x', 'precursorFormula_x',
+        'InChIkey2D', 'InChI', 'name', 'smiles', 'xlogp', 'pubchemids', 'Alignment ID',
+        'ionMass_x', 'retentionTimeInSeconds_x', 'retentionTimeInMinutes_x', 'formulaId_x'
+    ]
+    
+    # Add any columns matching the original regex pattern
+    regex_match = ft_an.columns[ft_an.columns.str.contains('^NPC|^SiriusScoreNormalized|^ClassyFire')]
+    all_columns = list(set(columns_to_include) | set(regex_match))
+    
+    new_ft_sirius_NPC = ft_an.loc[:, all_columns]
+
+
     new_md = new_md.rename(columns={'name_file': 'filename'})
     new_ft = new_ft.reindex(columns=sorted(new_ft.columns)) # Ordering the columns of 'new_ft' by their names
     new_md = new_md.sort_values(by='filename').reset_index(drop=True) #ordering the md by the 1st column filename
@@ -273,7 +287,54 @@ def convert_commas_to_floats(df):
     return df
 
 
-# In[27]:
+import re
+import pandas as pd
+
+ALIGNMENT_RE = re.compile(r"^X(\d+)_")  # captures 0 from "X0_..."
+
+import re
+import pandas as pd
+
+ALIGNMENT_RE = re.compile(r"^X(\d+)_")
+
+def transpose_and_add_alignment_id(df_first: pd.DataFrame, default_index_name="filename") -> pd.DataFrame:
+    if df_first is None or df_first.empty:
+        return df_first
+
+    df = df_first.copy()
+
+    # 1) Ensure we have the "sample id" on the index before transposing
+    # If index already named (e.g. "filename"), keep it.
+    index_name = df.index.name
+
+    # If index has no name, but there is a filename column, use it.
+    if index_name is None:
+        if default_index_name in df.columns:
+            df = df.set_index(default_index_name)
+            index_name = default_index_name
+        else:
+            # fallback: use first column as index (matches your original logic)
+            first_col = df.columns[0]
+            df = df.set_index(first_col)
+            index_name = str(first_col)
+
+    # 2) Transpose
+    flipped = df.T.copy()
+
+    # 3) Restore the index header name (transpose drops it)
+    flipped.index.name = index_name or default_index_name
+
+    # 4) Extract Alignment ID from original column headers (now flipped.index)
+    headers = flipped.index.astype(str)
+    alignment = headers.to_series().str.extract(ALIGNMENT_RE)[0]
+
+    if alignment.isna().any():
+        bad = headers[alignment.isna()].tolist()[:5]
+        raise ValueError(f"Could not extract Alignment ID from some headers. Examples: {bad}")
+
+    flipped.insert(0, "Alignment ID", alignment.astype(int).values)
+
+    return flipped
 
 
 def filter_merged_dataset(cleaned_data, metadata, ft_sirius, attribute_name,
@@ -2585,8 +2646,11 @@ def download_csv(n_clicks, current_step_key):
         df.set_index(df.columns[0], inplace=True)
     else:
         return no_update 
+    
+    flipped = transpose_and_add_alignment_id(df)
+    cache_put(flipped, "df_first_flipped")
 
-    return dcc.send_data_frame(df.to_csv, 'data_processed.csv', index=True)
+    return dcc.send_data_frame(flipped.to_csv, 'data_processed.csv', index=True)
 
 
 @callback(
@@ -2596,16 +2660,23 @@ def download_csv(n_clicks, current_step_key):
 )
 def download_csv(n_clicks):
     df = cache_get("merged")
-    if df is None:
+    df_first_flipped = cache_get("df_first_flipped")
+
+    if df_first_flipped is None or df is None:
         return no_update
 
     df = convert_commas_to_floats(df)
+    df_first_flipped = convert_commas_to_floats(df_first_flipped)
+
+
     if not df.empty and df.shape[1] > 0:
         df.set_index(df.columns[0], inplace=True)
     else:
         return no_update 
 
-    return dcc.send_data_frame(df.to_csv, 'data_merged_processed.csv', index=True)
+    merged = df.merge(df_first_flipped, on="Alignment ID", how="left")
+
+    return dcc.send_data_frame(merged.to_csv, 'data_merged_processed.csv', index=True)
 
 
 @callback(
